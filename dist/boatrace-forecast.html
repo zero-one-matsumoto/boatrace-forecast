@@ -106,6 +106,38 @@ body {
 .btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-block { width: 100%; margin-top: 12px; padding: 12px; font-size: 1rem; }
 
+/* ---- Fetch bar (公式データ取得) ---- */
+.fetch-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.fetch-select {
+  flex: 1;
+  min-width: 84px;
+  padding: 8px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-soft);
+  font-size: 0.9rem;
+}
+.btn-fetch {
+  background: var(--water);
+  color: #fff;
+  flex-basis: 100%;
+}
+.btn-fetch:hover { background: var(--water-deep); }
+.btn-fetch:disabled { opacity: 0.6; cursor: progress; }
+.fetch-status {
+  font-size: 0.8rem;
+  margin: 0 0 8px;
+  min-height: 1em;
+  color: var(--ink-soft);
+}
+.fetch-status.is-error { color: #c0392b; }
+.fetch-status.is-ok { color: var(--accent-dark); font-weight: 600; }
+
 /* ---- Entry table ---- */
 .table-wrap { overflow-x: auto; }
 .entry-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
@@ -225,6 +257,13 @@ body {
         </div>
       </div>
 
+      <div class="fetch-bar">
+        <select id="stadiumSel" class="fetch-select" aria-label="競艇場"></select>
+        <select id="raceSel" class="fetch-select" aria-label="レース番号"></select>
+        <button id="fetchBtn" class="btn btn-fetch" type="button">公式データ取得</button>
+      </div>
+      <p id="fetchStatus" class="fetch-status"></p>
+
       <div class="table-wrap">
         <table id="entryTable" class="entry-table">
           <thead>
@@ -317,6 +356,25 @@ BR.KIMARITE_INFO = {
   "まくり差し": "まくって来た艇のさらに内を差す、近年増加している複合的な展開。",
   "抜き": "1マークでは決着せず、道中（バックストレッチ等）で抜く展開。",
 };
+
+/**
+ * BoatraceOpenAPI（公式の番組表データを整形しGitHub Pagesで公開しているJSON）。
+ * CORS対応(Access-Control-Allow-Origin: *)のため、静的フロントからも直接取得できる。
+ * 本日開催分の全レースの出走表を含む。
+ */
+BR.OPENAPI_PROGRAMS_URL = "https://boatraceopenapi.github.io/programs/v2/today.json";
+
+/** 競艇場コード(1〜24)と場名 */
+BR.STADIUMS = [
+  { code: 1, name: "桐生" }, { code: 2, name: "戸田" }, { code: 3, name: "江戸川" },
+  { code: 4, name: "平和島" }, { code: 5, name: "多摩川" }, { code: 6, name: "浜名湖" },
+  { code: 7, name: "蒲郡" }, { code: 8, name: "常滑" }, { code: 9, name: "津" },
+  { code: 10, name: "三国" }, { code: 11, name: "びわこ" }, { code: 12, name: "住之江" },
+  { code: 13, name: "尼崎" }, { code: 14, name: "鳴門" }, { code: 15, name: "丸亀" },
+  { code: 16, name: "児島" }, { code: 17, name: "宮島" }, { code: 18, name: "徳山" },
+  { code: 19, name: "下関" }, { code: 20, name: "若松" }, { code: 21, name: "芦屋" },
+  { code: 22, name: "福岡" }, { code: 23, name: "唐津" }, { code: 24, name: "大村" },
+];
 
 /** サンプル出走表（イン逃げが軸になりやすい標準的な構成） */
 BR.SAMPLE_ENTRY = [
@@ -804,6 +862,154 @@ window.BR = BR;
 </script>
   <script>
 /**
+ * fetch.js — 公式データ由来の出走表取得（BoatraceOpenAPI / CORS対応JSON）
+ *
+ * ブラウザから直接 today.json を取得し、指定した「場 × レース番号」の
+ * 出走表を、予想エンジンが要求する形 {no, name, winRate, motorRate, avgST} に変換する。
+ *
+ * 注意:
+ *  - JSONのフィールド名は提供元の仕様変更に備え、複数候補から解決する（defensive）。
+ *  - 公式の「勝率」が無くパーセント値しか取れない場合は、近似的に勝率へ換算する。
+ */
+const BR = window.BR || {};
+
+/** 数値化（不正値はnull） */
+function _num(v) {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** 複数候補キーから最初に見つかった数値を返す */
+function _pickNum(obj, keys) {
+  for (const k of keys) {
+    const n = _num(obj[k]);
+    if (n !== null) return n;
+  }
+  return null;
+}
+
+/** 複数候補キーから最初に見つかった文字列を返す */
+function _pickStr(obj, keys) {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return null;
+}
+
+function _clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+/** APIのboatオブジェクトをエンジン入力形へ変換 */
+function mapBoat(b) {
+  const no = _pickNum(b, ["racer_boat_number", "boat_number", "boatNumber", "no"]);
+  const name =
+    _pickStr(b, ["racer_name", "name", "racerName"]) || (no ? `${no}号艇` : "選手");
+
+  // 全国勝率（競争得点ベース, おおむね4.5〜8.0）。無ければ2連対率%等から近似換算。
+  let winRate = _pickNum(b, [
+    "racer_rate_national", "racer_national_win_rate", "racer_national_rate",
+    "racer_win_rate_national", "national_win_rate", "win_rate",
+  ]);
+  if (winRate === null || winRate > 12) {
+    // 勝率が取れない/明らかにパーセント値 → 全国2連対率% or 1着率% から近似
+    const top2 = _pickNum(b, [
+      "racer_national_top_2_percent", "racer_national_top_2percent",
+      "national_top_2_percent", "racer_national_top2",
+    ]);
+    const top1 = _pickNum(b, [
+      "racer_national_top_1_percent", "racer_national_top_1percent",
+      "national_top_1_percent",
+    ]);
+    if (top2 !== null) winRate = 3.0 + top2 * 0.06;       // 2連率45%→約5.7
+    else if (top1 !== null) winRate = 2.5 + top1 * 0.12;  // 1着率25%→約5.5
+    else winRate = 5.5;
+  }
+  winRate = _clamp(winRate, 1, 9);
+
+  // モーター2連対率(%)
+  let motorRate = _pickNum(b, [
+    "racer_assigned_motor_top_2_percent", "racer_motor_top_2_percent",
+    "motor_top_2_percent", "racer_assigned_motor_top_2percent",
+  ]);
+  if (motorRate === null) motorRate = 45;
+  motorRate = _clamp(motorRate, 0, 100);
+
+  // 平均ST
+  let avgST = _pickNum(b, [
+    "racer_average_start_timing", "racer_avg_st", "racer_average_st",
+    "average_start_timing", "avg_st",
+  ]);
+  if (avgST === null || avgST <= 0) avgST = 0.16;
+  avgST = _clamp(avgST, 0.01, 0.5);
+
+  return {
+    no, name,
+    winRate: Number(winRate.toFixed(2)),
+    motorRate: Math.round(motorRate),
+    avgST: Number(avgST.toFixed(2)),
+  };
+}
+
+function _stadiumOf(p) {
+  return _pickNum(p, ["race_stadium_number", "stadium_number", "jcd", "stadium"]);
+}
+function _raceOf(p) {
+  return _pickNum(p, ["race_number", "race_no", "rno", "race"]);
+}
+
+/**
+ * 指定の場・レースの出走表を取得する。
+ * @param {number} stadium 場コード(1〜24)
+ * @param {number} race レース番号(1〜12)
+ * @returns {Promise<{entries:Array, meta:Object}>}
+ */
+BR.fetchProgram = async function (stadium, race) {
+  let res;
+  try {
+    res = await fetch(BR.OPENAPI_PROGRAMS_URL, { cache: "no-store" });
+  } catch (e) {
+    throw new Error("ネットワークに接続できませんでした（オフライン/通信制限の可能性）。");
+  }
+  if (!res.ok) throw new Error(`データ取得に失敗しました (HTTP ${res.status})。`);
+
+  const data = await res.json();
+  const programs = Array.isArray(data)
+    ? data
+    : data.programs || data.results || data.data || [];
+
+  const prog = programs.find(
+    (p) => _stadiumOf(p) === stadium && _raceOf(p) === race
+  );
+  if (!prog) {
+    throw new Error("本日の該当レースが見つかりませんでした（開催が無い、または締切後の可能性）。");
+  }
+
+  const rawBoats = prog.boats || prog.racers || prog.entries || [];
+  const entries = rawBoats
+    .map(mapBoat)
+    .filter((b) => b.no >= 1 && b.no <= 6)
+    .sort((a, b) => a.no - b.no);
+
+  if (entries.length < 6) {
+    throw new Error("出走表の艇数が不足しています（データ未確定の可能性）。");
+  }
+
+  const stadiumName =
+    (BR.STADIUMS.find((s) => s.code === stadium) || {}).name || `場${stadium}`;
+  const meta = {
+    stadium, race, stadiumName,
+    title: _pickStr(prog, ["race_title", "title"]) || "",
+    date: _pickStr(data, ["date"]) || _pickStr(prog, ["race_date", "date"]) || "",
+  };
+  return { entries, meta };
+};
+
+window.BR = BR;
+
+</script>
+  <script>
+/**
  * app.js — UI制御
  * 出走表の生成・入力読み取り、予想実行、結果と可視化の表示を担う。
  */
@@ -824,7 +1030,48 @@ window.BR = BR;
     resultContent: document.getElementById("resultContent"),
     rankingList: document.getElementById("rankingList"),
     betList: document.getElementById("betList"),
+    stadiumSel: document.getElementById("stadiumSel"),
+    raceSel: document.getElementById("raceSel"),
+    fetchBtn: document.getElementById("fetchBtn"),
+    fetchStatus: document.getElementById("fetchStatus"),
   };
+
+  /** 場・レース番号のセレクトを生成 */
+  function buildSelectors() {
+    els.stadiumSel.innerHTML = BR.STADIUMS.map(
+      (s) => `<option value="${s.code}">${s.name}</option>`
+    ).join("");
+    els.raceSel.innerHTML = Array.from({ length: 12 }, (_, i) =>
+      `<option value="${i + 1}">${i + 1}R</option>`
+    ).join("");
+  }
+
+  /** 公式データ由来の出走表を取得してテーブルに反映 */
+  async function fetchOfficial() {
+    const stadium = Number(els.stadiumSel.value);
+    const race = Number(els.raceSel.value);
+    const name = (BR.STADIUMS.find((s) => s.code === stadium) || {}).name || "";
+
+    setFetchStatus(`${name} ${race}R を取得中…`, "");
+    els.fetchBtn.disabled = true;
+    try {
+      const { entries, meta } = await BR.fetchProgram(stadium, race);
+      fillTable(entries);
+      const title = meta.title ? `「${meta.title}」` : "";
+      setFetchStatus(`✓ ${meta.stadiumName} ${race}R ${title} を読み込みました（出典: BoatraceOpenAPI）`, "ok");
+    } catch (e) {
+      setFetchStatus(`取得できませんでした: ${e.message}`, "error");
+    } finally {
+      els.fetchBtn.disabled = false;
+    }
+  }
+
+  function setFetchStatus(msg, kind) {
+    els.fetchStatus.textContent = msg;
+    els.fetchStatus.classList.remove("is-error", "is-ok");
+    if (kind === "error") els.fetchStatus.classList.add("is-error");
+    else if (kind === "ok") els.fetchStatus.classList.add("is-ok");
+  }
 
   /** 出走表の入力行を生成 */
   function buildTable() {
@@ -947,8 +1194,10 @@ window.BR = BR;
   els.randomBtn.addEventListener("click", () => fillTable(BR.makeRandomEntry()));
   els.predictBtn.addEventListener("click", runPrediction);
   els.replayBtn.addEventListener("click", () => BR.Visualizer.replay());
+  els.fetchBtn.addEventListener("click", fetchOfficial);
 
   // ---- 初期化 ----
+  buildSelectors();
   buildTable();
   BR.Visualizer.init(els.canvas);
   fillTable(BR.SAMPLE_ENTRY); // 初期表示としてサンプルを投入

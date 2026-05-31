@@ -25,6 +25,13 @@
         </div>
       </div>
 
+      <div class="fetch-bar">
+        <select id="stadiumSel" class="fetch-select" aria-label="競艇場"></select>
+        <select id="raceSel" class="fetch-select" aria-label="レース番号"></select>
+        <button id="fetchBtn" class="btn btn-fetch" type="button">公式データ取得</button>
+      </div>
+      <p id="fetchStatus" class="fetch-status"></p>
+
       <div class="table-wrap">
         <table id="entryTable" class="entry-table">
           <thead>
@@ -82,6 +89,7 @@
   <script src="js/data.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/visualize.js"></script>
+  <script src="js/fetch.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -99,6 +99,38 @@ body {
 .btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-block { width: 100%; margin-top: 12px; padding: 12px; font-size: 1rem; }
 
+/* ---- Fetch bar (公式データ取得) ---- */
+.fetch-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.fetch-select {
+  flex: 1;
+  min-width: 84px;
+  padding: 8px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-soft);
+  font-size: 0.9rem;
+}
+.btn-fetch {
+  background: var(--water);
+  color: #fff;
+  flex-basis: 100%;
+}
+.btn-fetch:hover { background: var(--water-deep); }
+.btn-fetch:disabled { opacity: 0.6; cursor: progress; }
+.fetch-status {
+  font-size: 0.8rem;
+  margin: 0 0 8px;
+  min-height: 1em;
+  color: var(--ink-soft);
+}
+.fetch-status.is-error { color: #c0392b; }
+.fetch-status.is-ok { color: var(--accent-dark); font-weight: 600; }
+
 /* ---- Entry table ---- */
 .table-wrap { overflow-x: auto; }
 .entry-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }

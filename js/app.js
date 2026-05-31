@@ -19,7 +19,48 @@
     resultContent: document.getElementById("resultContent"),
     rankingList: document.getElementById("rankingList"),
     betList: document.getElementById("betList"),
+    stadiumSel: document.getElementById("stadiumSel"),
+    raceSel: document.getElementById("raceSel"),
+    fetchBtn: document.getElementById("fetchBtn"),
+    fetchStatus: document.getElementById("fetchStatus"),
   };
+
+  /** 場・レース番号のセレクトを生成 */
+  function buildSelectors() {
+    els.stadiumSel.innerHTML = BR.STADIUMS.map(
+      (s) => `<option value="${s.code}">${s.name}</option>`
+    ).join("");
+    els.raceSel.innerHTML = Array.from({ length: 12 }, (_, i) =>
+      `<option value="${i + 1}">${i + 1}R</option>`
+    ).join("");
+  }
+
+  /** 公式データ由来の出走表を取得してテーブルに反映 */
+  async function fetchOfficial() {
+    const stadium = Number(els.stadiumSel.value);
+    const race = Number(els.raceSel.value);
+    const name = (BR.STADIUMS.find((s) => s.code === stadium) || {}).name || "";
+
+    setFetchStatus(`${name} ${race}R を取得中…`, "");
+    els.fetchBtn.disabled = true;
+    try {
+      const { entries, meta } = await BR.fetchProgram(stadium, race);
+      fillTable(entries);
+      const title = meta.title ? `「${meta.title}」` : "";
+      setFetchStatus(`✓ ${meta.stadiumName} ${race}R ${title} を読み込みました（出典: BoatraceOpenAPI）`, "ok");
+    } catch (e) {
+      setFetchStatus(`取得できませんでした: ${e.message}`, "error");
+    } finally {
+      els.fetchBtn.disabled = false;
+    }
+  }
+
+  function setFetchStatus(msg, kind) {
+    els.fetchStatus.textContent = msg;
+    els.fetchStatus.classList.remove("is-error", "is-ok");
+    if (kind === "error") els.fetchStatus.classList.add("is-error");
+    else if (kind === "ok") els.fetchStatus.classList.add("is-ok");
+  }
 
   /** 出走表の入力行を生成 */
   function buildTable() {
@@ -142,8 +183,10 @@
   els.randomBtn.addEventListener("click", () => fillTable(BR.makeRandomEntry()));
   els.predictBtn.addEventListener("click", runPrediction);
   els.replayBtn.addEventListener("click", () => BR.Visualizer.replay());
+  els.fetchBtn.addEventListener("click", fetchOfficial);
 
   // ---- 初期化 ----
+  buildSelectors();
   buildTable();
   BR.Visualizer.init(els.canvas);
   fillTable(BR.SAMPLE_ENTRY); // 初期表示としてサンプルを投入
