@@ -182,6 +182,61 @@ body {
   font-size: 0.85rem;
 }
 .hint { font-size: 0.75rem; color: var(--ink-soft); margin: 10px 0 0; }
+.entry-table select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 2px;
+  font-size: 0.78rem;
+  background: #fff;
+}
+.entry-table th, .entry-table td { padding: 5px 2px; }
+
+/* ---- Race conditions ---- */
+.cond-box {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px 10px;
+  margin-top: 12px;
+}
+.cond-box legend { font-size: 0.82rem; color: var(--ink-soft); padding: 0 6px; font-weight: 700; }
+.cond-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.cond-grid label {
+  display: flex; flex-direction: column; gap: 3px;
+  font-size: 0.78rem; color: var(--ink-soft); flex: 1; min-width: 84px;
+}
+.cond-unit { display: flex; align-items: center; gap: 3px; font-size: 0.78rem; }
+.cond-input {
+  border: 1px solid var(--line); border-radius: 6px; padding: 5px 6px; font-size: 0.85rem;
+}
+.cond-unit .cond-input { width: 100%; }
+.stadium-trait { margin: 8px 0 0; font-size: 0.78rem; color: var(--accent-dark); }
+
+/* ---- Player bar (seek + play) ---- */
+.player-bar { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.btn-play {
+  background: var(--accent); color: #fff;
+  width: 44px; height: 44px; border-radius: 50%;
+  font-size: 1.1rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+}
+.btn-play:hover { background: var(--accent-dark); }
+.seek-wrap { flex: 1; }
+.seek-bar {
+  width: 100%; -webkit-appearance: none; appearance: none;
+  height: 6px; border-radius: 3px; background: var(--line); outline: none;
+}
+.seek-bar::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent); cursor: pointer; border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.seek-bar::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent); cursor: pointer; border: 2px solid #fff;
+}
+.seek-ticks { display: flex; justify-content: space-between; margin-top: 4px; }
+.seek-ticks .tick { font-size: 0.68rem; color: var(--ink-soft); }
 
 /* ---- Canvas / Viz ---- */
 .canvas-wrap { position: relative; width: 100%; }
@@ -311,16 +366,29 @@ body {
               <th>艇</th>
               <th>選手名</th>
               <th title="全国勝率">全国<br>勝率</th>
-              <th title="モーター2連対率(%)">モーター<br>2連率</th>
+              <th title="モーター2連対率(%)">M2<br>連率</th>
               <th title="平均スタートタイミング">平均<br>ST</th>
+              <th title="展示タイム(秒)">展示<br>T</th>
+              <th title="チルト角度">チル<br>ト</th>
+              <th title="1M戦法(握る/差し/まくり/流す)">1M<br>戦法</th>
             </tr>
           </thead>
           <tbody id="entryBody"><!-- JSで生成 --></tbody>
         </table>
       </div>
 
+      <fieldset class="cond-box">
+        <legend>レース条件</legend>
+        <div class="cond-grid">
+          <label>風向<select id="windDir" class="cond-input"></select></label>
+          <label>風速<span class="cond-unit"><input id="windSpeed" class="cond-input" type="number" min="0" max="20" step="1" value="0">m</span></label>
+          <label>波高<span class="cond-unit"><input id="waveHeight" class="cond-input" type="number" min="0" max="50" step="1" value="0">cm</span></label>
+        </div>
+        <p id="stadiumTrait" class="stadium-trait"></p>
+      </fieldset>
+
       <button id="predictBtn" class="btn btn-primary btn-block" type="button">展開を予想する</button>
-      <p class="hint">※ 数値は実際の出走表（公式サイト等）を参考に入力してください。</p>
+      <p class="hint">※ 展示T・チルト・風波・場の特徴・戦法も予想に反映されます。空欄は標準値で補完します。</p>
     </section>
 
     <!-- 可視化パネル -->
@@ -329,13 +397,25 @@ body {
         <h2>展開予想ビジュアライザー</h2>
         <div class="panel-actions">
           <span id="kimariteBadge" class="badge badge-hidden">決まり手: -</span>
-          <button id="replayBtn" class="btn btn-ghost" type="button" disabled>▶ 再生</button>
         </div>
       </div>
       <div class="canvas-wrap">
-        <canvas id="raceCanvas" width="920" height="520"></canvas>
+        <canvas id="raceCanvas" width="960" height="560"></canvas>
         <div id="vizPlaceholder" class="viz-placeholder">
-          <p>「展開を予想する」を押すと、ここに1マークの攻防が表示されます。</p>
+          <p>「展開を予想する」を押すと、進入隊形〜起こし〜1マークの攻防が表示されます。</p>
+        </div>
+      </div>
+
+      <div id="playerBar" class="player-bar" hidden>
+        <button id="playBtn" class="btn btn-play" type="button">▶</button>
+        <div class="seek-wrap">
+          <input id="seekBar" class="seek-bar" type="range" min="0" max="1000" value="0" step="1" aria-label="再生位置">
+          <div class="seek-ticks">
+            <span class="tick" data-phase="formation">待機/起こし</span>
+            <span class="tick" data-phase="start">スタート</span>
+            <span class="tick" data-phase="mark">1マーク</span>
+            <span class="tick" data-phase="after">通過後〜2M</span>
+          </div>
         </div>
       </div>
       <p id="vizComment" class="viz-comment"></p>
@@ -419,29 +499,79 @@ BR.STADIUMS = [
 
 /** サンプル出走表（イン逃げが軸になりやすい標準的な構成） */
 BR.SAMPLE_ENTRY = [
-  { no: 1, name: "峰  竜太",   winRate: 7.42, motorRate: 58, avgST: 0.14 },
-  { no: 2, name: "毒島 誠",   winRate: 6.85, motorRate: 49, avgST: 0.15 },
-  { no: 3, name: "石野 貴之", winRate: 6.61, motorRate: 52, avgST: 0.16 },
-  { no: 4, name: "井口 佳典", winRate: 6.20, motorRate: 46, avgST: 0.13 },
-  { no: 5, name: "茅原 悠紀", winRate: 5.78, motorRate: 41, avgST: 0.17 },
-  { no: 6, name: "西山 貴浩", winRate: 5.40, motorRate: 38, avgST: 0.12 },
+  { no: 1, name: "峰  竜太",   winRate: 7.42, motorRate: 58, avgST: 0.14, exhibitionTime: 6.70, tilt: 0.0, style: "nige" },
+  { no: 2, name: "毒島 誠",   winRate: 6.85, motorRate: 49, avgST: 0.15, exhibitionTime: 6.74, tilt: 0.0, style: "sashi" },
+  { no: 3, name: "石野 貴之", winRate: 6.61, motorRate: 52, avgST: 0.16, exhibitionTime: 6.72, tilt: 0.5, style: "makuri" },
+  { no: 4, name: "井口 佳典", winRate: 6.20, motorRate: 46, avgST: 0.13, exhibitionTime: 6.71, tilt: 1.0, style: "makuri" },
+  { no: 5, name: "茅原 悠紀", winRate: 5.78, motorRate: 41, avgST: 0.17, exhibitionTime: 6.78, tilt: 0.5, style: "normal" },
+  { no: 6, name: "西山 貴浩", winRate: 5.40, motorRate: 38, avgST: 0.12, exhibitionTime: 6.76, tilt: 1.5, style: "makuri" },
+];
+
+/**
+ * 会場の特徴（イン有利度・まくり発生度）。1.0が標準。
+ * inAdvantage > 1 はイン天国、< 1 は差し・まくりが決まりやすい難水面。
+ */
+BR.STADIUM_TRAITS = {
+  1:  { inAdvantage: 1.00, makuri: 1.05, note: "桐生：ナイター・風変化" },
+  2:  { inAdvantage: 0.86, makuri: 1.25, note: "戸田：狭水面・まくり多発" },
+  3:  { inAdvantage: 0.80, makuri: 1.30, note: "江戸川：荒水面・実力勝負" },
+  4:  { inAdvantage: 0.92, makuri: 1.10, note: "平和島：風と潮で波乱" },
+  5:  { inAdvantage: 1.05, makuri: 0.95, note: "多摩川：静水面・好インコース" },
+  6:  { inAdvantage: 1.02, makuri: 1.00, note: "浜名湖：広水面・標準" },
+  7:  { inAdvantage: 1.04, makuri: 0.98, note: "蒲郡：ナイター・イン強め" },
+  8:  { inAdvantage: 1.00, makuri: 1.05, note: "常滑：風影響あり" },
+  9:  { inAdvantage: 0.98, makuri: 1.05, note: "津：標準やや差し" },
+  10: { inAdvantage: 1.00, makuri: 1.00, note: "三国：標準" },
+  11: { inAdvantage: 0.95, makuri: 1.10, note: "びわこ：うねり・荒れ" },
+  12: { inAdvantage: 1.06, makuri: 0.95, note: "住之江：ナイター・好水面" },
+  13: { inAdvantage: 1.02, makuri: 1.00, note: "尼崎：イン安定" },
+  14: { inAdvantage: 0.90, makuri: 1.15, note: "鳴門：潮の干満で変化" },
+  15: { inAdvantage: 1.05, makuri: 0.98, note: "丸亀：ナイター・イン強め" },
+  16: { inAdvantage: 1.03, makuri: 1.00, note: "児島：標準やや内" },
+  17: { inAdvantage: 0.96, makuri: 1.08, note: "宮島：潮流変化" },
+  18: { inAdvantage: 1.08, makuri: 0.92, note: "徳山：イン天国・1コース強" },
+  19: { inAdvantage: 1.04, makuri: 0.98, note: "下関：ナイター・イン強め" },
+  20: { inAdvantage: 1.02, makuri: 1.02, note: "若松：ナイター標準" },
+  21: { inAdvantage: 1.07, makuri: 0.93, note: "芦屋：イン強い静水面" },
+  22: { inAdvantage: 0.93, makuri: 1.12, note: "福岡：うねり・差し有効" },
+  23: { inAdvantage: 1.03, makuri: 1.00, note: "唐津：標準やや内" },
+  24: { inAdvantage: 1.10, makuri: 0.90, note: "大村：イン天国・全国一" },
+};
+
+/** 風向きの選択肢 */
+BR.WIND_DIRS = [
+  { value: "none", label: "無風" },
+  { value: "tail", label: "追い風" },
+  { value: "head", label: "向かい風" },
+  { value: "side", label: "横風" },
+];
+
+/** 1M戦法の選択肢（値は engine.js の STYLE_TRAIT に対応） */
+BR.STYLE_OPTIONS = [
+  { value: "nige", label: "逃げ握り" },
+  { value: "sashi", label: "差し" },
+  { value: "makuri", label: "まくり" },
+  { value: "normal", label: "標準" },
+  { value: "drift", label: "流す" },
 ];
 
 /** ランダム出走表を生成（テスト・デモ用） */
 BR.makeRandomEntry = function () {
   const surnames = ["佐藤","鈴木","高橋","田中","渡辺","伊藤","山本","中村","小林","加藤","吉田","山田","松本","井上","木村"];
   const given = ["太郎","健","誠","翔","大輔","拓也","直樹","和也","隆","勇気","涼","純"];
+  const styles = ["nige", "sashi", "makuri", "normal", "drift"];
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-  const rnd = (min, max, dec = 2) => {
-    const v = min + Math.random() * (max - min);
-    return Number(v.toFixed(dec));
-  };
+  const rnd = (min, max, dec = 2) => Number((min + Math.random() * (max - min)).toFixed(dec));
   return BR.BOATS.map((b) => ({
     no: b.no,
     name: `${pick(surnames)} ${pick(given)}`,
     winRate: rnd(4.5, 7.8, 2),
     motorRate: Math.round(rnd(32, 62, 0)),
     avgST: rnd(0.11, 0.22, 2),
+    exhibitionTime: rnd(6.65, 6.88, 2),
+    tilt: pick([-0.5, 0.0, 0.0, 0.5, 1.0, 1.5]),
+    // 1号艇は逃げ寄り、外艇はまくり寄りにしておく
+    style: b.no === 1 ? "nige" : b.no >= 4 ? pick(["makuri", "makuri", "normal"]) : pick(styles),
   }));
 };
 
@@ -450,120 +580,208 @@ window.BR = BR;
 </script>
   <script>
 /**
- * engine.js — 展開予想エンジン
+ * engine.js — 展開予想エンジン（拡張版）
  *
- * 出走表（選手の勝率・モーター2連率・平均ST・進入コース）から、
- * 各艇の「強さ」と勝率、1マークでの決まり手、着順予想、推奨買い目を算出する。
+ * 出走表（実力・モーター・ST）に加え、以下のファクターを取り込んで
+ * 各艇の強さ・1マーク主導権・決まり手・進入隊形・着順・買い目を算出する。
  *
- * 競艇の基本特性:
- *  - インコースほど1着率が高い（1号艇が圧倒的有利）。
- *  - スタートタイミング(ST)が速いほど主導権を握りやすく、特に外艇は
- *    速いSTがあると「まくり」が決まりやすい。
- *  - 決まり手は概ね進入コースに対応する（1=逃げ, 2=差し, 4=まくり…）。
+ *  - 展示タイム（周回展示の伸び/行き足の目安。速いほど機力上位）
+ *  - チルト角度（上げるほど伸び型＝まくり有利・ターン安定性は低下）
+ *  - 風向き / 風速（追い風=逃げ有利だがターンは流れやすい、向かい風=差し・まくり有利）
+ *  - 波高（高いほど内・経験者有利、外まくり/高チルトは不利）
+ *  - 場の特徴（イン有利度・まくり発生度などの会場補正）
+ *  - 選手の1M戦法（握る/差し/まくり/標準/流す）= ターンラインと決まり手傾向
  */
 var BR = window.BR || {};
 
-/** 値を範囲内に収める */
 function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
 }
 
-/**
- * 1艇分の基礎指標を計算する。
- * @returns {{base:number, startScore:number, courseRate:number}}
- */
-function computeMetrics(entry) {
-  const courseRate = BR.COURSE_WIN_RATE[entry.no] || 5; // 進入=艇番として扱う
+/** 風向きごとの係数（逃げ・まくり差し系への影響） */
+const WIND_EFFECT = {
+  none: { nige: 0, attack: 0, variance: 0 },
+  tail: { nige: 0.06, attack: -0.03, variance: 0.04 }, // 追い風: 逃げ有利・ターン流れる
+  head: { nige: -0.05, attack: 0.06, variance: 0.03 }, // 向かい風: 差し/まくり有利
+  side: { nige: -0.02, attack: 0.0, variance: 0.07 },  // 横風: 荒れやすい
+};
 
-  // 各要素を 0〜1 付近に正規化
-  const skill = clamp(entry.winRate / 7.5, 0, 1.1);       // 全国勝率（7.5でほぼ満点）
-  const motor = clamp(entry.motorRate / 60, 0, 1.1);      // モーター2連率
-  const course = clamp(courseRate / 55, 0, 1);            // コース有利度
-  // STは速い(小さい)ほど良い。0.20を基準に 0.10差で大きく変動。
+/** 1M戦法の特性（ターンの締まり=tight, 決まり手の寄り） */
+const STYLE_TRAIT = {
+  nige:   { label: "逃げ握り", tight: 1.0,  biasInner: 0.06, biasOuter: 0.0,  power: 0.02 },
+  sashi:  { label: "差し",     tight: 0.55, biasInner: 0.03, biasOuter: 0.0,  power: 0.0 },
+  makuri: { label: "まくり",   tight: 0.85, biasInner: 0.0,  biasOuter: 0.07, power: 0.04 },
+  normal: { label: "標準",     tight: 0.7,  biasInner: 0.0,  biasOuter: 0.0,  power: 0.0 },
+  drift:  { label: "流す",     tight: 0.35, biasInner: -0.02, biasOuter: 0.0, power: -0.02 },
+};
+BR.STYLE_TRAIT = STYLE_TRAIT;
+
+/** 1艇分の基礎指標 */
+function computeMetrics(entry, ctx) {
+  const traits = (BR.STADIUM_TRAITS && BR.STADIUM_TRAITS[ctx.stadium]) ||
+    { inAdvantage: 1.0, makuri: 1.0 };
+
+  // 進入コース別の1着率（会場のイン有利度で補正）
+  const baseCourseRate = BR.COURSE_WIN_RATE[entry.course] || 5;
+  const courseRate = baseCourseRate * traits.inAdvantage;
+
+  const skill = clamp(entry.winRate / 7.5, 0, 1.1);
+  const motor = clamp(entry.motorRate / 60, 0, 1.1);
+  const course = clamp(courseRate / 55, 0, 1.05);
   const startScore = clamp((0.20 - entry.avgST) / 0.10, -0.5, 1.3);
 
-  // 総合的な「強さ」（コース有利度の比重を最も大きく取る）
-  const base =
-    0.34 * course +
-    0.30 * skill +
-    0.21 * motor +
-    0.15 * startScore;
+  // 展示タイム: 速い(小さい)ほど良い。フィールド平均との差で評価。
+  const exhScore = ctx.exhMean
+    ? clamp((ctx.exhMean - entry.exhibitionTime) / 0.10, -1.0, 1.0)
+    : 0;
 
-  return { base, startScore, courseRate };
+  // チルト: 高いほど伸び型。0.5を基準に評価（プラスで伸び/まくり力）。
+  const tiltScore = clamp((entry.tilt - 0.5) / 2.0, -0.3, 1.0);
+
+  const base =
+    0.30 * course +
+    0.26 * skill +
+    0.17 * motor +
+    0.13 * startScore +
+    0.10 * exhScore +
+    0.04 * tiltScore;
+
+  return { base, startScore, exhScore, tiltScore, courseRate, traits };
 }
 
-/**
- * 1マーク到達時点の主導権スコア。
- * 強さに加え、STの速さと外艇の攻撃力（まくり適性）を加味する。
- */
-function firstMarkScore(entry, metrics) {
-  let s = metrics.base;
+/** 1マーク主導権スコア（ST・攻撃力・風・波・戦法を加味） */
+function firstMarkScore(entry, m, ctx) {
+  const style = STYLE_TRAIT[entry.style] || STYLE_TRAIT.normal;
+  let s = m.base;
 
-  // STアドバンテージ: 速いSTは1マークの主導権に直結
-  s += 0.12 * metrics.startScore;
+  // STアドバンテージ
+  s += 0.12 * m.startScore;
 
-  // 外艇(4〜6)は「速いST × 高い実力」が揃うとまくりで主導権を取れる
-  if (entry.no >= 4) {
-    const attack = clamp(metrics.startScore, 0, 1.3) * clamp(entry.winRate / 7.5, 0, 1.1);
-    s += 0.10 * attack;
+  // 外艇(進入4〜6)の攻め: 速いST×実力×伸び(チルト/展示)でまくり主導権
+  if (entry.course >= 4) {
+    const attack =
+      clamp(m.startScore, 0, 1.3) *
+      (0.6 * clamp(entry.winRate / 7.5, 0, 1.1) + 0.4 * clamp(m.exhScore + 0.5, 0, 1));
+    s += 0.10 * attack * (1 + 0.3 * m.tiltScore);
+    s += WIND_EFFECT[ctx.windDir].attack * ctx.windStrength;
   }
+
+  // インの逃げ: 追い風で有利、向かい風で軽減
+  if (entry.course <= 2) {
+    s += WIND_EFFECT[ctx.windDir].nige * ctx.windStrength;
+  }
+
+  // 波高: 高いほど内・経験者(実力)有利、外艇/高チルトは不利
+  if (ctx.waveHeight > 3) {
+    const waveFactor = clamp((ctx.waveHeight - 3) / 10, 0, 1);
+    if (entry.course >= 4) s -= 0.05 * waveFactor * (0.5 + m.tiltScore);
+    s += 0.04 * waveFactor * clamp(entry.winRate / 7.5, 0, 1.1) * (entry.course <= 3 ? 1 : 0.3);
+  }
+
+  // 戦法による攻め寄り/守り寄り
+  s += style.power + (entry.course <= 3 ? style.biasInner : style.biasOuter);
+
   return s;
 }
 
-/** 決まり手を判定する */
-function decideKimarite(rankingNos, scoreByNo) {
-  const leader = rankingNos[0];
-  const second = rankingNos[1];
+/** 決まり手判定（戦法・風を加味） */
+function decideKimarite(ranking, scoreByNo, byNo, ctx) {
+  const leader = ranking[0];
+  const second = ranking[1];
+  const lead = byNo[leader];
   const gap = scoreByNo[leader] - scoreByNo[second];
+  const lc = lead.course;
 
-  if (leader === 1) return "逃げ";
-  if (leader === 2) return "差し";
-  if (leader === 3) {
-    // 内に差せる隙があれば差し、スピード勝負ならまくり
+  if (lc === 1) return "逃げ";
+  if (lc === 2) return lead.style === "makuri" ? "まくり" : "差し";
+  if (lc === 3) {
+    if (lead.style === "makuri") return "まくり";
+    if (lead.style === "sashi") return "差し";
     return gap > 0.04 ? "まくり" : "差し";
   }
-  // 4〜6号艇が先頭 = まくり主体。内艇がすぐ後ろに残れば「まくり差し」決着も。
-  if (second <= 3) return "まくり差し";
+  // 4〜6コースが先頭 = まくり主体。内が残れば まくり差し。
+  if (byNo[second] && byNo[second].course <= 3) return "まくり差し";
   return "まくり";
 }
 
 /**
- * メインの予想関数。
- * @param {Array} entries 出走表（6艇分）
- * @returns 予想結果オブジェクト
+ * メイン予想。
+ * @param {Array} entries 出走表（各艇: no, course, name, winRate, motorRate, avgST, exhibitionTime, tilt, style）
+ * @param {Object} conditions 風向/風速/波高/場
  */
-BR.predict = function (entries) {
-  // 1. 各艇の指標を算出
-  const enriched = entries.map((e) => {
-    const m = computeMetrics(e);
-    return { ...e, _m: m, base: m.base, firstMark: firstMarkScore(e, m) };
+BR.predict = function (entries, conditions) {
+  conditions = conditions || {};
+  const windDir = WIND_EFFECT[conditions.windDir] ? conditions.windDir : "none";
+  const windSpeed = Number(conditions.windSpeed) || 0;
+  const ctx = {
+    stadium: conditions.stadium,
+    windDir,
+    windSpeed,
+    windStrength: clamp(windSpeed / 6, 0, 1.6), // 6m/sでほぼ最大
+    waveHeight: Number(conditions.waveHeight) || 0,
+    exhMean: 0,
+  };
+
+  // 進入コースの既定は枠なり（艇番＝コース）
+  const normalized = entries.map((e) => ({
+    ...e,
+    course: e.course || e.no,
+    exhibitionTime: Number(e.exhibitionTime) || 0,
+    tilt: e.tilt === undefined || e.tilt === "" ? 0.5 : Number(e.tilt),
+    style: STYLE_TRAIT[e.style] ? e.style : "normal",
+  }));
+
+  // 展示タイムの平均（0は未入力として除外）
+  const exhVals = normalized.map((e) => e.exhibitionTime).filter((v) => v > 0);
+  ctx.exhMean = exhVals.length ? exhVals.reduce((a, b) => a + b, 0) / exhVals.length : 0;
+
+  // 指標算出
+  const enriched = normalized.map((e) => {
+    const m = computeMetrics(e, ctx);
+    return { ...e, _m: m, base: m.base, firstMark: firstMarkScore(e, m, ctx) };
   });
 
-  // 2. 着順予想は 1マーク主導権スコアの降順
+  // 着順 = 1マーク主導権の降順
   const ranking = [...enriched].sort((a, b) => b.firstMark - a.firstMark);
   const rankingNos = ranking.map((e) => e.no);
-  const scoreByNo = {};
-  enriched.forEach((e) => (scoreByNo[e.no] = e.firstMark));
+  const scoreByNo = {}, byNo = {};
+  enriched.forEach((e) => { scoreByNo[e.no] = e.firstMark; byNo[e.no] = e; });
 
-  // 3. 勝率: 主導権スコアを温度付きで強調し正規化
-  const GAMMA = 3.2; // 大きいほど本命に集中
+  // 勝率（主導権スコアを強調し正規化）。荒れ条件では集中度を緩める。
+  const variance =
+    WIND_EFFECT[windDir].variance * ctx.windStrength +
+    clamp(ctx.waveHeight / 30, 0, 0.4);
+  const GAMMA = clamp(3.2 - variance * 2.5, 1.6, 3.4);
   const expScores = enriched.map((e) => ({
     no: e.no,
     w: Math.pow(Math.max(e.firstMark, 0.01), GAMMA),
   }));
-  const sumW = expScores.reduce((acc, x) => acc + x.w, 0);
+  const sumW = expScores.reduce((a, x) => a + x.w, 0);
   const winProb = {};
   expScores.forEach((x) => (winProb[x.no] = x.w / sumW));
 
-  // 4. 決まり手
-  const kimarite = decideKimarite(rankingNos, scoreByNo);
+  const kimarite = decideKimarite(rankingNos, scoreByNo, byNo, ctx);
   const leaderNo = rankingNos[0];
+  const leader = byNo[leaderNo];
 
-  // 5. コメント生成
-  const leaderEntry = enriched.find((e) => e.no === leaderNo);
-  const comment = buildComment(kimarite, leaderEntry, ranking, winProb);
+  // 可視化用の隊形データ（進入コース・起こし位置・ターン特性・タイミング）
+  const stMin = Math.min(...enriched.map((e) => e.avgST));
+  const stMax = Math.max(...enriched.map((e) => e.avgST));
+  const development = ranking.map((e, idx) => {
+    const style = STYLE_TRAIT[e.style] || STYLE_TRAIT.normal;
+    const stNorm = stMax > stMin ? (e.avgST - stMin) / (stMax - stMin) : 0; // 0=速い
+    return {
+      no: e.no,
+      course: e.course,
+      rank: idx,                  // 0 = 予想1着
+      tight: style.tight,         // ターンの締まり(握る=大,流す=小)
+      stDelay: stNorm,            // スタートの遅れ(0=速い)
+      // 起こし(助走開始)の深さ: STが速い/握る型ほど深く起こす傾向（演出）
+      okoshiDepth: clamp(0.5 + (1 - stNorm) * 0.5 + (style.tight - 0.7) * 0.4, 0.2, 1.2),
+    };
+  });
 
-  // 6. 推奨買い目
+  const comment = buildComment(kimarite, leader, ranking, winProb, ctx);
   const bets = buildBets(rankingNos, winProb);
 
   return {
@@ -574,43 +792,42 @@ BR.predict = function (entries) {
     leaderNo,
     comment,
     bets,
+    development,
+    conditions: ctx,
   };
 };
 
-/** 予想コメントを組み立てる */
-function buildComment(kimarite, leader, ranking, winProb) {
+function buildComment(kimarite, leader, ranking, winProb, ctx) {
   const topProb = Math.round(winProb[leader.no] * 100);
   const secondNo = ranking[1].no;
   const info = BR.KIMARITE_INFO[kimarite] || "";
   let lead;
-  if (kimarite === "逃げ") {
-    lead = `本命は ${leader.no}号艇「${leader.name}」のイン逃げ。`;
-  } else if (kimarite === "差し") {
-    lead = `${leader.no}号艇「${leader.name}」が内を突く差しで主導権を握る展開。`;
-  } else if (kimarite.startsWith("まくり")) {
-    lead = `${leader.no}号艇「${leader.name}」のスピードを活かした${kimarite}に注目。`;
-  } else {
-    lead = `${leader.no}号艇「${leader.name}」が中心。`;
+  if (kimarite === "逃げ") lead = `本命は ${leader.no}号艇「${leader.name}」のイン逃げ。`;
+  else if (kimarite === "差し") lead = `${leader.no}号艇「${leader.name}」の差しが主導権を握る展開。`;
+  else if (kimarite.startsWith("まくり")) lead = `${leader.no}号艇「${leader.name}」の${kimarite}に注目。`;
+  else lead = `${leader.no}号艇「${leader.name}」が中心。`;
+
+  const cond = [];
+  if (ctx.windDir !== "none" && ctx.windSpeed > 0) {
+    const wn = { tail: "追い風", head: "向かい風", side: "横風" }[ctx.windDir];
+    cond.push(`${wn}${ctx.windSpeed}m`);
   }
-  return `${lead} ${info} 勝率予想は約${topProb}%、相手は ${secondNo}号艇が有力です。`;
+  if (ctx.waveHeight > 0) cond.push(`波高${ctx.waveHeight}cm`);
+  const condStr = cond.length ? `（${cond.join("・")}）` : "";
+
+  return `${lead}${condStr} ${info} 勝率予想は約${topProb}%、相手は ${secondNo}号艇が有力です。`;
 }
 
-/**
- * 推奨買い目（3連単・2連単）を組み立てる。
- * 軸＝予想1着、相手＝予想2・3着を中心に、点数を絞った買い目を提示する。
- */
 function buildBets(ranking, winProb) {
   const [a, b, c, d] = ranking;
   const pct = (no) => Math.round(winProb[no] * 100);
-
-  const bets = [
+  return [
     { type: "3連単 本命", combo: `${a}-${b}-${c}`, conf: "◎" },
     { type: "3連単 対抗", combo: `${a}-${c}-${b}`, conf: "○" },
     { type: "3連単 抑え", combo: `${a}-${b}-${d}`, conf: "▲" },
     { type: "2連単 軸流し", combo: `${a}-${b},${a}-${c}`, conf: "◎" },
     { type: "3連複 押さえ", combo: `${a}=${b}=${c}`, conf: "○" },
-  ];
-  return bets.map((x) => ({ ...x, note: `1着${pct(a)}%` }));
+  ].map((x) => ({ ...x, note: `1着${pct(a)}%` }));
 }
 
 window.BR = BR;
@@ -618,229 +835,318 @@ window.BR = BR;
 </script>
   <script>
 /**
- * visualize.js — 展開予想ビジュアライザー
+ * visualize.js — 展開予想ビジュアライザー（反時計回り・フルラップ・スクラブ対応）
  *
- * スタートから1マーク（第1ターンマーク）までの攻防を Canvas 上でアニメーション表示する。
- * 予想された着順・決まり手に基づき、各艇の航跡（ターンライン）を描画する。
- *  - 予想1着の艇は最も内側を小回りし、先にマークを回る。
- *  - 下位艇ほど外側を大回りし、遅れて回る。
- *  - 「まくり」では外艇が先頭に立つため、その艇が内側ラインで先マイする。
+ *  - コースは実際のボートレースと同じ反時計回り（左回り）。
+ *    ホームストレッチ(下,→東)→1マーク(右)→バックストレッチ(上,←西)→2マーク(左)→ホーム。
+ *  - 再生開始は「作戦待機行動終了後」= 各艇が進入コースで助走を起こす位置から。
+ *  - 1マーク通過後もバック〜2マークまで描画を継続。シークバーで任意位置へスクラブ可能。
+ *  - 予想着順・決まり手・戦法に基づき、誰がどのコースから起こしてどう回るかを表現する。
  */
 var BR = window.BR || {};
 
 var Visualizer = (function () {
-  // 論理キャンバスサイズ
-  const W = 920, H = 520;
-  // 1マーク（ターンマーク）の位置
-  const BUOY = { x: 690, y: 350 };
-  const START_X = 120;
+  const W = 960, H = 560;
+  const M1 = { x: 790, y: 300 };   // 1マーク（右）
+  const M2 = { x: 170, y: 300 };   // 2マーク（左）
+  const X_START = 470;             // スタートライン（ホーム上）
+  const CENTER = { x: 480, y: 300 };
 
   let canvas, ctx, dpr = 1;
-  let boats = [];          // 描画用の艇データ（パス・色など）
+  let boats = [];
   let rafId = null;
-  let startTime = 0;
-  const DURATION = 4200;   // アニメーション時間(ms)
-  let onDone = null;
+  let lastTs = 0;
+  let progress = 0;          // 0..1 タイムライン全体
+  let playing = false;
+  const DURATION = 7200;     // フルラップ再生時間(ms)
+  let phaseTicks = { start: 0.15, mark: 0.45 };
 
-  /** 進入コース(=艇番)ごとのスタートライン上のY座標。内(1号艇)が下、外(6号艇)が上。 */
-  function startY(course) {
-    return 96 + (6 - course) * 41;
+  // コールバック
+  let onProgress = null;     // (t) => void
+  let onStateChange = null;  // (playing) => void
+
+  /** ホームストレッチ上のレーンY（進入コース別。内=1コースが上/中央寄り） */
+  function yHome(course) { return 360 + (course - 1) * 18; }
+  /** バックストレッチ上のレーンY（着順別。1着=内=下/中央寄り） */
+  function yBack(rank) { return 246 - rank * 18; }
+
+  // ---------- Catmull-Rom スプライン（円弧長で等速サンプリング） ----------
+  function catmull(p0, p1, p2, p3, s) {
+    const s2 = s * s, s3 = s2 * s;
+    return {
+      x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * s +
+        (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * s2 +
+        (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * s3),
+      y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * s +
+        (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * s2 +
+        (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * s3),
+    };
   }
 
-  /** 初期化 */
+  function buildSmoothPath(wp) {
+    const pts = [];
+    const ext = [wp[0], ...wp, wp[wp.length - 1]];
+    const STEPS = 26;
+    for (let i = 0; i < ext.length - 3; i++) {
+      for (let s = 0; s < STEPS; s++) {
+        pts.push(catmull(ext[i], ext[i + 1], ext[i + 2], ext[i + 3], s / STEPS));
+      }
+    }
+    pts.push(wp[wp.length - 1]);
+    // 累積長
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) {
+      const dx = pts[i].x - pts[i - 1].x, dy = pts[i].y - pts[i - 1].y;
+      cum.push(cum[i - 1] + Math.hypot(dx, dy));
+    }
+    return { pts, cum, total: cum[cum.length - 1] };
+  }
+
+  /** 円弧長フラクション(0..1)での位置と向き */
+  function sampleAt(path, frac) {
+    frac = Math.max(0, Math.min(1, frac));
+    const target = frac * path.total;
+    const { pts, cum } = path;
+    let lo = 0, hi = cum.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (cum[mid] < target) lo = mid + 1; else hi = mid;
+    }
+    const i = Math.max(1, lo);
+    const seg = cum[i] - cum[i - 1] || 1;
+    const r = (target - cum[i - 1]) / seg;
+    const a = pts[i - 1], b = pts[i];
+    const x = a.x + (b.x - a.x) * r, y = a.y + (b.y - a.y) * r;
+    // 向きは少し先のサンプルから
+    const j = Math.min(pts.length - 1, i + 1);
+    const angle = Math.atan2(pts[j].y - a.y, pts[j].x - a.x);
+    return { x, y, angle };
+  }
+
+  /** 1艇分のフルラップ航跡ウェイポイントを作る */
+  function makeWaypoints(d) {
+    const c = d.course, r = d.rank, tight = d.tight;
+    const yh = yHome(c), yb = yBack(r);
+    // ターン半径: 着順が上＝小回り、握る型ほど締まる
+    const R = Math.max(22, Math.min(120, 28 + r * 15 - (tight - 0.7) * 20));
+    // 起こし位置（助走開始）: 深さ d.okoshiDepth
+    const xOkoshi = X_START - (120 + d.okoshiDepth * 70);
+
+    return [
+      { x: xOkoshi, y: yh },                         // 0 起こし(待機行動終了後)
+      { x: X_START, y: yh },                         // 1 スタートライン通過
+      { x: 690, y: yh },                             // 2 1M進入
+      { x: M1.x + R * 0.55, y: M1.y + R * 0.9 },     // 3 1Mターン入口(右下)
+      { x: M1.x + R, y: M1.y + R * 0.05 },           // 4 1M頂点(右)
+      { x: M1.x + R * 0.1, y: M1.y - R * 0.95 },     // 5 1Mターン出口(右上)
+      { x: 650, y: yb },                             // 6 バック進入(西へ)
+      { x: 400, y: yb },                             // 7 バック中盤
+      { x: M2.x + 120, y: yb + (M2.y - yb) * 0.35 }, // 8 2M進入
+      { x: M2.x - (18 + r * 10), y: M2.y - 6 },      // 9 2M頂点(左)
+      { x: M2.x + 90, y: yHome(r + 1) },             // 10 2M出口→ホーム復帰
+      { x: 360, y: yHome(r + 1) },                   // 11 ホーム(2周目)
+    ];
+  }
+
   function init(canvasEl) {
     canvas = canvasEl;
     ctx = canvas.getContext("2d");
-    dpr = window.devicePixelRatio || 1;
+    dpr = (window.devicePixelRatio || 1);
     canvas.width = W * dpr;
     canvas.height = H * dpr;
     ctx.scale(dpr, dpr);
   }
 
-  /**
-   * 予想結果からアニメーション用のパスを構築して再生する。
-   * @param {Object} prediction BR.predict() の戻り値
-   */
-  function render(prediction) {
-    const rankIndex = {};
-    prediction.ranking.forEach((no, i) => (rankIndex[no] = i));
+  /** 予想結果を読み込み、起こし位置(t=0)を描画（自動再生はしない） */
+  function load(result) {
+    const dev = result.development;
+    boats = dev.map((d) => {
+      const meta = BR.BOATS[d.no - 1];
+      const path = buildSmoothPath(makeWaypoints(d));
+      // タイミング: STが速い/着順上位ほど僅かに先行
+      const off = 0.022 * d.stDelay + 0.03 * (d.rank / 5);
+      return { no: d.no, course: d.course, rank: d.rank, color: meta.color,
+        textColor: meta.textColor, path, off, trail: [] };
+    });
 
-    boats = prediction.entries.map((e) => {
-      const r = rankIndex[e.no];            // 0 = 予想1着
-      const meta = BR.BOATS[e.no - 1];
-      const y0 = startY(e.no);
-
-      // 着順が上の艇ほどマークを小回り(半径小)し、先に回る
-      const R = 30 + r * 19;                 // ターン半径（内回り/外回り）
-      const lead = r * 0.045;                // 進行の遅れ（先頭ほど小さい）
-
-      // 3次ベジエ曲線の制御点: スタート → 直進 → マーク手前(小回り) → 旋回出口
-      const P0 = { x: START_X, y: y0 };
-      const P1 = { x: BUOY.x - 150, y: y0 };
-      const P2 = { x: BUOY.x - R, y: BUOY.y + R * 0.25 };
-      const P3 = { x: BUOY.x - R * 0.25, y: BUOY.y - R };
-
-      return {
-        no: e.no, name: e.name, rank: r,
-        color: meta.color, textColor: meta.textColor,
-        P0, P1, P2, P3, lead,
-        trail: [],
+    // フェーズ位置（代表＝先頭艇のパス長から算出）
+    const lead = boats.find((b) => b.rank === 0) || boats[0];
+    if (lead) {
+      phaseTicks = {
+        start: fracAtWaypoint(lead.path, 1, makeWaypointsCountRef(lead)),
+        mark: fracAtWaypoint(lead.path, 4, makeWaypointsCountRef(lead)),
       };
-    });
-
-    stop();
-    startTime = performance.now();
-    onDone = null;
-    rafId = requestAnimationFrame(loop);
-  }
-
-  /** 再生（同じパスでもう一度） */
-  function replay() {
-    if (!boats.length) return;
-    boats.forEach((b) => (b.trail = []));
-    stop();
-    startTime = performance.now();
-    rafId = requestAnimationFrame(loop);
-  }
-
-  function stop() {
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = null;
-  }
-
-  /** 3次ベジエ上の点 */
-  function bezier(b, t) {
-    const mt = 1 - t;
-    const a0 = mt * mt * mt, a1 = 3 * mt * mt * t, a2 = 3 * mt * t * t, a3 = t * t * t;
-    return {
-      x: a0 * b.P0.x + a1 * b.P1.x + a2 * b.P2.x + a3 * b.P3.x,
-      y: a0 * b.P0.y + a1 * b.P1.y + a2 * b.P2.y + a3 * b.P3.y,
-    };
-  }
-
-  /** 3次ベジエの接線（進行方向の角度算出用） */
-  function bezierAngle(b, t) {
-    const mt = 1 - t;
-    const dx =
-      3 * mt * mt * (b.P1.x - b.P0.x) +
-      6 * mt * t * (b.P2.x - b.P1.x) +
-      3 * t * t * (b.P3.x - b.P2.x);
-    const dy =
-      3 * mt * mt * (b.P1.y - b.P0.y) +
-      6 * mt * t * (b.P2.y - b.P1.y) +
-      3 * t * t * (b.P3.y - b.P2.y);
-    return Math.atan2(dy, dx);
-  }
-
-  /** メインループ */
-  function loop(now) {
-    const elapsed = (now - startTime) / DURATION; // 0..1+
-    drawScene(elapsed);
-    if (elapsed < 1.05) {
-      rafId = requestAnimationFrame(loop);
-    } else {
-      rafId = null;
-      drawScene(1); // 最終フレームを確定描画
-      if (onDone) onDone();
     }
+
+    stop();
+    progress = 0;
+    playing = false;
+    drawScene(0);
+    if (onStateChange) onStateChange(false);
+    if (onProgress) onProgress(0);
   }
 
-  /** 全体の描画 */
-  function drawScene(progress) {
+  // ウェイポイント本数（フェーズ算出の補助）
+  function makeWaypointsCountRef() { return 12; }
+  /** n番目のウェイポイントが全長のどのフラクションかを近似 */
+  function fracAtWaypoint(path, wpIndex, wpCount) {
+    // ウェイポイントは等間隔の制御点。対応サンプルインデックスを推定。
+    const approx = wpIndex / (wpCount - 1);
+    return Math.max(0, Math.min(1, approx));
+  }
+
+  // ---------- 再生制御 ----------
+  function play() {
+    if (!boats.length) return;
+    if (progress >= 1) progress = 0;
+    playing = true;
+    if (onStateChange) onStateChange(true);
+    lastTs = 0;
+    stop();
+    rafId = requestAnimationFrame(loop);
+  }
+  function pause() {
+    playing = false;
+    stop();
+    if (onStateChange) onStateChange(false);
+  }
+  function toggle() { playing ? pause() : play(); }
+  function seek(t) {
+    progress = Math.max(0, Math.min(1, t));
+    drawScene(progress);
+    if (onProgress) onProgress(progress);
+  }
+  function stop() { if (rafId) cancelAnimationFrame(rafId); rafId = null; }
+  function isPlaying() { return playing; }
+
+  function loop(ts) {
+    if (!playing) return;
+    if (!lastTs) lastTs = ts;
+    const dt = ts - lastTs;
+    lastTs = ts;
+    progress += dt / DURATION;
+    if (progress >= 1) {
+      progress = 1;
+      drawScene(1);
+      if (onProgress) onProgress(1);
+      pause();
+      return;
+    }
+    drawScene(progress);
+    if (onProgress) onProgress(progress);
+    rafId = requestAnimationFrame(loop);
+  }
+
+  // ---------- 描画 ----------
+  function drawScene(t) {
     drawCourse();
-
-    // 各艇の現在位置を計算
     const positions = boats.map((b) => {
-      const t = Math.max(0, Math.min(1, progress - b.lead));
-      const pos = bezier(b, t);
-      const ang = bezierAngle(b, t);
-      // 航跡を記録
-      if (t > 0 && t < 1.0) {
-        b.trail.push({ x: pos.x, y: pos.y });
-        if (b.trail.length > 60) b.trail.shift();
+      const p = Math.max(0, Math.min(1, t - b.off));
+      const s = sampleAt(b.path, p);
+      if (p > 0 && p < 1) {
+        b.trail.push({ x: s.x, y: s.y });
+        if (b.trail.length > 70) b.trail.shift();
+      } else if (p <= 0) {
+        b.trail.length = 0;
       }
-      return { b, pos, ang, t };
+      return { b, s, p };
     });
-
-    // 航跡を先に描画
     positions.forEach(({ b }) => drawTrail(b));
-    // 艇を描画
-    positions.forEach(({ b, pos, ang }) => drawBoat(b, pos, ang));
+    // 起こし位置（待機行動終了後）の薄いマーカー（t序盤のみ）
+    if (t < phaseTicks.start + 0.05) positions.forEach(({ b }) => drawOkoshiMark(b));
+    positions.forEach(({ b, s, p }) => drawBoat(b, s, p, t));
   }
 
-  /** コース（水面・ライン・ターンマーク）を描画 */
   function drawCourse() {
-    // 水面グラデーション
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, "#2a8bc4");
     g.addColorStop(1, "#0b4d7a");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
 
-    // うっすらレーンガイド
-    ctx.strokeStyle = "rgba(255,255,255,0.07)";
-    ctx.lineWidth = 1;
-    for (let c = 1; c <= 6; c++) {
-      const y = startY(c);
-      ctx.beginPath();
-      ctx.moveTo(START_X, y);
-      ctx.lineTo(BUOY.x - 40, y);
-      ctx.stroke();
-    }
+    // インフィールド（中央の島）
+    ctx.fillStyle = "rgba(20,70,110,0.55)";
+    roundRect(M2.x + 60, M1.y - 120, (M1.x - 60) - (M2.x + 60), 240, 90);
+    ctx.fill();
+
+    // 走路（レーシングライン）の目安オーバル
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.lineWidth = 2;
+    roundRect(M2.x - 70, M1.y - 200, (M1.x + 70) - (M2.x - 70), 400, 170);
+    ctx.stroke();
+
+    // 反時計回りの方向矢印
+    drawArrow(560, 488, 1);   // ホーム(下) 東向き →
+    drawArrow(400, 112, -1);  // バック(上) 西向き ←
 
     // スタートライン
-    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.strokeStyle = "rgba(255,255,255,0.9)";
     ctx.lineWidth = 3;
     ctx.setLineDash([10, 8]);
     ctx.beginPath();
-    ctx.moveTo(START_X, startY(6) - 30);
-    ctx.lineTo(START_X, startY(1) + 30);
+    ctx.moveTo(X_START, yHome(1) - 26);
+    ctx.lineTo(X_START, yHome(6) + 26);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.font = "bold 14px sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.font = "bold 13px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("スタート", START_X, startY(6) - 42);
+    ctx.fillText("スタート/ゴール", X_START, yHome(6) + 44);
 
-    // ターンマーク（1マーク）: 赤白のブイ
-    drawBuoy(BUOY.x, BUOY.y);
+    // ターンマーク
+    drawBuoy(M1.x, M1.y); label("1マーク", M1.x + 16, M1.y - 16, "left");
+    drawBuoy(M2.x, M2.y); label("2マーク", M2.x - 16, M2.y - 16, "right");
+  }
+
+  function label(text, x, y, align) {
     ctx.fillStyle = "rgba(255,255,255,0.95)";
-    ctx.font = "bold 16px sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText("1マーク", BUOY.x + 18, BUOY.y - 14);
+    ctx.font = "bold 15px sans-serif";
+    ctx.textAlign = align || "left";
+    ctx.fillText(text, x, y);
   }
 
-  /** ターンマークのブイを描画 */
-  function drawBuoy(x, y) {
-    // 影
-    ctx.fillStyle = "rgba(0,0,0,0.25)";
+  function drawArrow(x, y, dir) {
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
+    ctx.fillStyle = "rgba(255,255,255,0.22)";
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.ellipse(x, y + 14, 14, 5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // 本体（円柱風）
-    ctx.fillStyle = "#e63946";
-    ctx.beginPath();
-    ctx.arc(x, y, 11, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#ffffff";
-    ctx.beginPath();
-    ctx.arc(x, y, 11, Math.PI * 0.15, Math.PI * 0.85);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.3)";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(x, y, 11, 0, Math.PI * 2);
+    ctx.moveTo(x - 34 * dir, y);
+    ctx.lineTo(x + 22 * dir, y);
     ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 34 * dir, y);
+    ctx.lineTo(x + 16 * dir, y - 7);
+    ctx.lineTo(x + 16 * dir, y + 7);
+    ctx.closePath();
+    ctx.fill();
   }
 
-  /** 航跡（ウェイク）を描画 */
+  function drawBuoy(x, y) {
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    ctx.beginPath(); ctx.ellipse(x, y + 14, 13, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#e63946";
+    ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(x, y, 11, Math.PI * 0.15, Math.PI * 0.85); ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  function drawOkoshiMark(b) {
+    const s = sampleAt(b.path, 0);
+    ctx.strokeStyle = hexA(b.color, 0.5, b.no === 1);
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.arc(s.x, s.y, 10, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   function drawTrail(b) {
     if (b.trail.length < 2) return;
-    ctx.lineWidth = 5;
-    ctx.lineCap = "round";
+    ctx.lineWidth = 5; ctx.lineCap = "round";
     for (let i = 1; i < b.trail.length; i++) {
       const alpha = (i / b.trail.length) * 0.5;
-      ctx.strokeStyle = hexToRgba(b.color, alpha, b.no === 1);
+      ctx.strokeStyle = hexA(b.color, alpha, b.no === 1);
       ctx.beginPath();
       ctx.moveTo(b.trail[i - 1].x, b.trail[i - 1].y);
       ctx.lineTo(b.trail[i].x, b.trail[i].y);
@@ -848,53 +1154,54 @@ var Visualizer = (function () {
     }
   }
 
-  /** 1艇を描画（進行方向に回転） */
-  function drawBoat(b, pos, ang) {
+  function drawBoat(b, s, p, t) {
     ctx.save();
-    ctx.translate(pos.x, pos.y);
-    ctx.rotate(ang);
-
-    // 船体（先のとがった舟形）
+    ctx.translate(s.x, s.y);
+    ctx.rotate(s.angle);
     ctx.beginPath();
-    ctx.moveTo(14, 0);
-    ctx.lineTo(-9, -7);
-    ctx.lineTo(-6, 0);
-    ctx.lineTo(-9, 7);
+    ctx.moveTo(14, 0); ctx.lineTo(-9, -7); ctx.lineTo(-6, 0); ctx.lineTo(-9, 7);
     ctx.closePath();
     ctx.fillStyle = b.color;
-    ctx.strokeStyle = "rgba(0,0,0,0.55)";
-    ctx.lineWidth = 1.5;
-    ctx.fill();
-    ctx.stroke();
+    ctx.strokeStyle = "rgba(0,0,0,0.55)"; ctx.lineWidth = 1.5;
+    ctx.fill(); ctx.stroke();
     ctx.restore();
 
-    // 艇番ラベル（回転させず水平に）
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y - 16, 9, 0, Math.PI * 2);
-    ctx.fillStyle = b.color;
-    ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.5)";
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    // 艇番ラベル
+    ctx.beginPath(); ctx.arc(s.x, s.y - 16, 9, 0, Math.PI * 2);
+    ctx.fillStyle = b.color; ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 1; ctx.stroke();
     ctx.fillStyle = b.textColor;
-    ctx.font = "bold 11px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(String(b.no), pos.x, pos.y - 16);
+    ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(String(b.no), s.x, s.y - 16);
     ctx.textBaseline = "alphabetic";
   }
 
-  /** #rrggbb → rgba文字列。1号艇(白)は視認性のため縁取り色を調整 */
-  function hexToRgba(hex, alpha, isWhite) {
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function hexA(hex, alpha, isWhite) {
+    if (isWhite) return `rgba(210,225,235,${alpha})`;
     const c = hex.replace("#", "");
     const r = parseInt(c.substring(0, 2), 16);
     const g = parseInt(c.substring(2, 4), 16);
     const b = parseInt(c.substring(4, 6), 16);
-    if (isWhite) return `rgba(210,225,235,${alpha})`;
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
-  return { init, render, replay, stop };
+  return {
+    init, load, play, pause, toggle, seek, isPlaying,
+    getPhaseTicks: () => phaseTicks,
+    set onProgress(fn) { onProgress = fn; },
+    set onStateChange(fn) { onStateChange = fn; },
+    _debugBoats: () => boats,
+  };
 })();
 
 BR.Visualizer = Visualizer;
@@ -1052,7 +1359,7 @@ window.BR = BR;
   <script>
 /**
  * app.js — UI制御
- * 出走表の生成・入力読み取り、予想実行、結果と可視化の表示を担う。
+ * 出走表/レース条件の入力、予想実行、結果表示、ビジュアライザーの再生制御を担う。
  */
 (function () {
   const BR = window.BR;
@@ -1062,7 +1369,6 @@ window.BR = BR;
     sampleBtn: document.getElementById("sampleBtn"),
     randomBtn: document.getElementById("randomBtn"),
     predictBtn: document.getElementById("predictBtn"),
-    replayBtn: document.getElementById("replayBtn"),
     canvas: document.getElementById("raceCanvas"),
     vizPlaceholder: document.getElementById("vizPlaceholder"),
     vizComment: document.getElementById("vizComment"),
@@ -1075,9 +1381,16 @@ window.BR = BR;
     raceSel: document.getElementById("raceSel"),
     fetchBtn: document.getElementById("fetchBtn"),
     fetchStatus: document.getElementById("fetchStatus"),
+    windDir: document.getElementById("windDir"),
+    windSpeed: document.getElementById("windSpeed"),
+    waveHeight: document.getElementById("waveHeight"),
+    stadiumTrait: document.getElementById("stadiumTrait"),
+    playerBar: document.getElementById("playerBar"),
+    playBtn: document.getElementById("playBtn"),
+    seekBar: document.getElementById("seekBar"),
   };
 
-  /** 場・レース番号のセレクトを生成（静的HTMLで既に埋まっていれば尊重） */
+  // ---- セレクト生成 ----
   function buildSelectors() {
     if (!els.stadiumSel.options || els.stadiumSel.options.length === 0) {
       els.stadiumSel.innerHTML = BR.STADIUMS.map(
@@ -1089,14 +1402,23 @@ window.BR = BR;
         `<option value="${i + 1}">${i + 1}R</option>`
       ).join("");
     }
+    els.windDir.innerHTML = BR.WIND_DIRS.map(
+      (w) => `<option value="${w.value}">${w.label}</option>`
+    ).join("");
   }
 
-  /** 公式データ由来の出走表を取得してテーブルに反映 */
+  /** 場の特徴メモを表示 */
+  function updateStadiumTrait() {
+    const code = Number(els.stadiumSel.value);
+    const t = BR.STADIUM_TRAITS[code];
+    els.stadiumTrait.textContent = t ? `場の特徴: ${t.note}` : "";
+  }
+
+  // ---- 公式データ取得 ----
   async function fetchOfficial() {
     const stadium = Number(els.stadiumSel.value);
     const race = Number(els.raceSel.value);
     const name = (BR.STADIUMS.find((s) => s.code === stadium) || {}).name || "";
-
     setFetchStatus(`${name} ${race}R を取得中…`, "");
     els.fetchBtn.disabled = true;
     try {
@@ -1110,7 +1432,6 @@ window.BR = BR;
       els.fetchBtn.disabled = false;
     }
   }
-
   function setFetchStatus(msg, kind) {
     els.fetchStatus.textContent = msg;
     els.fetchStatus.classList.remove("is-error", "is-ok");
@@ -1118,86 +1439,91 @@ window.BR = BR;
     else if (kind === "ok") els.fetchStatus.classList.add("is-ok");
   }
 
-  /** 出走表の入力行を生成 */
+  // ---- 出走表テーブル ----
   function buildTable() {
     els.entryBody.innerHTML = "";
+    const styleOpts = BR.STYLE_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join("");
     BR.BOATS.forEach((b) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>
-          <span class="boat-badge" style="background:${b.color};color:${b.textColor}">${b.no}</span>
-        </td>
+        <td><span class="boat-badge" style="background:${b.color};color:${b.textColor}">${b.no}</span></td>
         <td><input class="name-input" data-no="${b.no}" data-f="name" type="text" placeholder="選手名"></td>
         <td><input data-no="${b.no}" data-f="winRate" type="number" step="0.01" min="0" max="10" placeholder="0.00"></td>
         <td><input data-no="${b.no}" data-f="motorRate" type="number" step="1" min="0" max="100" placeholder="0"></td>
         <td><input data-no="${b.no}" data-f="avgST" type="number" step="0.01" min="0" max="1" placeholder="0.00"></td>
+        <td><input data-no="${b.no}" data-f="exhibitionTime" type="number" step="0.01" min="6" max="8" placeholder="6.70"></td>
+        <td><input data-no="${b.no}" data-f="tilt" type="number" step="0.5" min="-0.5" max="3" placeholder="0.0"></td>
+        <td><select data-no="${b.no}" data-f="style">${styleOpts}</select></td>
       `;
       els.entryBody.appendChild(tr);
     });
   }
 
-  /** 出走表に値をセット */
   function fillTable(entries) {
     entries.forEach((e) => {
       setVal(e.no, "name", e.name);
       setVal(e.no, "winRate", e.winRate);
       setVal(e.no, "motorRate", e.motorRate);
       setVal(e.no, "avgST", e.avgST);
+      if (e.exhibitionTime !== undefined) setVal(e.no, "exhibitionTime", e.exhibitionTime || "");
+      if (e.tilt !== undefined) setVal(e.no, "tilt", e.tilt);
+      if (e.style !== undefined) setVal(e.no, "style", e.style);
     });
   }
-
   function setVal(no, field, value) {
-    const el = els.entryBody.querySelector(`input[data-no="${no}"][data-f="${field}"]`);
+    const el = els.entryBody.querySelector(`[data-no="${no}"][data-f="${field}"]`);
     if (el) el.value = value;
   }
-
-  /** 出走表から入力値を読み取り。未入力はコース平均的なデフォルトで補完 */
-  function readTable() {
-    return BR.BOATS.map((b) => {
-      const name = getVal(b.no, "name") || `${b.no}号艇`;
-      const winRate = num(getVal(b.no, "winRate"), 5.5);
-      const motorRate = num(getVal(b.no, "motorRate"), 45);
-      const avgST = num(getVal(b.no, "avgST"), 0.16);
-      return { no: b.no, name, winRate, motorRate, avgST };
-    });
-  }
-
   function getVal(no, field) {
-    const el = els.entryBody.querySelector(`input[data-no="${no}"][data-f="${field}"]`);
-    return el ? el.value.trim() : "";
+    const el = els.entryBody.querySelector(`[data-no="${no}"][data-f="${field}"]`);
+    return el ? String(el.value).trim() : "";
   }
   function num(v, fallback) {
     const n = parseFloat(v);
     return Number.isFinite(n) ? n : fallback;
   }
 
-  /** 予想を実行 */
+  function readTable() {
+    return BR.BOATS.map((b) => ({
+      no: b.no,
+      course: b.no, // 進入は枠なりを既定
+      name: getVal(b.no, "name") || `${b.no}号艇`,
+      winRate: num(getVal(b.no, "winRate"), 5.5),
+      motorRate: num(getVal(b.no, "motorRate"), 45),
+      avgST: num(getVal(b.no, "avgST"), 0.16),
+      exhibitionTime: num(getVal(b.no, "exhibitionTime"), 0),
+      tilt: num(getVal(b.no, "tilt"), 0.5),
+      style: getVal(b.no, "style") || "normal",
+    }));
+  }
+
+  function readConditions() {
+    return {
+      stadium: Number(els.stadiumSel.value),
+      windDir: els.windDir.value,
+      windSpeed: num(els.windSpeed.value, 0),
+      waveHeight: num(els.waveHeight.value, 0),
+    };
+  }
+
+  // ---- 予想実行 ----
   function runPrediction() {
-    const entries = readTable();
-    const result = BR.predict(entries);
+    const result = BR.predict(readTable(), readConditions());
 
-    // 可視化
     els.vizPlaceholder.style.display = "none";
-    BR.Visualizer.render(result);
-    els.replayBtn.disabled = false;
+    els.playerBar.hidden = false;
+    BR.Visualizer.load(result);
+    BR.Visualizer.play();
 
-    // 決まり手バッジ
     els.kimariteBadge.textContent = `決まり手: ${result.kimarite}`;
     els.kimariteBadge.classList.remove("badge-hidden");
-
-    // コメント
     els.vizComment.textContent = result.comment;
-
-    // 結果（着順・買い目）
     renderResult(result);
   }
 
-  /** 着順予想と買い目を描画 */
   function renderResult(result) {
     els.resultEmpty.hidden = true;
     els.resultContent.hidden = false;
-
-    // 着順（勝率の降順 = ranking順）
     els.rankingList.innerHTML = "";
     result.ranking.forEach((no, i) => {
       const entry = result.entries.find((e) => e.no === no);
@@ -1209,12 +1535,9 @@ window.BR = BR;
         <span class="boat-badge" style="background:${meta.color};color:${meta.textColor}">${no}</span>
         <span class="rank-name">${escapeHtml(entry.name)}</span>
         <span class="prob-bar-wrap"><span class="prob-bar" style="width:${prob}%"></span></span>
-        <span class="prob-val">${prob}%</span>
-      `;
+        <span class="prob-val">${prob}%</span>`;
       els.rankingList.appendChild(li);
     });
-
-    // 買い目
     els.betList.innerHTML = "";
     result.bets.forEach((bet) => {
       const div = document.createElement("div");
@@ -1222,30 +1545,43 @@ window.BR = BR;
       div.innerHTML = `
         <span class="bet-type">${bet.type}</span>
         <span class="bet-combo">${bet.combo}</span>
-        <span class="bet-conf">${bet.conf}</span>
-      `;
+        <span class="bet-conf">${bet.conf}</span>`;
       els.betList.appendChild(div);
     });
   }
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
-    );
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
-  // ---- イベント登録 ----
+  // ---- 再生制御の配線 ----
+  function setupPlayer() {
+    BR.Visualizer.onProgress = (t) => { els.seekBar.value = Math.round(t * 1000); };
+    BR.Visualizer.onStateChange = (playing) => {
+      els.playBtn.textContent = playing ? "❚❚" : "▶";
+    };
+    els.playBtn.addEventListener("click", () => BR.Visualizer.toggle());
+    els.seekBar.addEventListener("input", () => {
+      BR.Visualizer.pause();
+      BR.Visualizer.seek(Number(els.seekBar.value) / 1000);
+    });
+  }
+
+  // ---- イベント ----
   els.sampleBtn.addEventListener("click", () => fillTable(BR.SAMPLE_ENTRY));
   els.randomBtn.addEventListener("click", () => fillTable(BR.makeRandomEntry()));
   els.predictBtn.addEventListener("click", runPrediction);
-  els.replayBtn.addEventListener("click", () => BR.Visualizer.replay());
   els.fetchBtn.addEventListener("click", fetchOfficial);
+  els.stadiumSel.addEventListener("change", updateStadiumTrait);
 
   // ---- 初期化 ----
   buildSelectors();
   buildTable();
+  setupPlayer();
   BR.Visualizer.init(els.canvas);
-  fillTable(BR.SAMPLE_ENTRY); // 初期表示としてサンプルを投入
+  fillTable(BR.SAMPLE_ENTRY);
+  updateStadiumTrait();
 })();
 
 </script>

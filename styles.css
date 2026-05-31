@@ -175,6 +175,61 @@ body {
   font-size: 0.85rem;
 }
 .hint { font-size: 0.75rem; color: var(--ink-soft); margin: 10px 0 0; }
+.entry-table select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 2px;
+  font-size: 0.78rem;
+  background: #fff;
+}
+.entry-table th, .entry-table td { padding: 5px 2px; }
+
+/* ---- Race conditions ---- */
+.cond-box {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px 10px;
+  margin-top: 12px;
+}
+.cond-box legend { font-size: 0.82rem; color: var(--ink-soft); padding: 0 6px; font-weight: 700; }
+.cond-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.cond-grid label {
+  display: flex; flex-direction: column; gap: 3px;
+  font-size: 0.78rem; color: var(--ink-soft); flex: 1; min-width: 84px;
+}
+.cond-unit { display: flex; align-items: center; gap: 3px; font-size: 0.78rem; }
+.cond-input {
+  border: 1px solid var(--line); border-radius: 6px; padding: 5px 6px; font-size: 0.85rem;
+}
+.cond-unit .cond-input { width: 100%; }
+.stadium-trait { margin: 8px 0 0; font-size: 0.78rem; color: var(--accent-dark); }
+
+/* ---- Player bar (seek + play) ---- */
+.player-bar { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.btn-play {
+  background: var(--accent); color: #fff;
+  width: 44px; height: 44px; border-radius: 50%;
+  font-size: 1.1rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+}
+.btn-play:hover { background: var(--accent-dark); }
+.seek-wrap { flex: 1; }
+.seek-bar {
+  width: 100%; -webkit-appearance: none; appearance: none;
+  height: 6px; border-radius: 3px; background: var(--line); outline: none;
+}
+.seek-bar::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent); cursor: pointer; border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.seek-bar::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent); cursor: pointer; border: 2px solid #fff;
+}
+.seek-ticks { display: flex; justify-content: space-between; margin-top: 4px; }
+.seek-ticks .tick { font-size: 0.68rem; color: var(--ink-soft); }
 
 /* ---- Canvas / Viz ---- */
 .canvas-wrap { position: relative; width: 100%; }

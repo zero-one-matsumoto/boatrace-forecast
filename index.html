@@ -66,16 +66,29 @@
               <th>艇</th>
               <th>選手名</th>
               <th title="全国勝率">全国<br>勝率</th>
-              <th title="モーター2連対率(%)">モーター<br>2連率</th>
+              <th title="モーター2連対率(%)">M2<br>連率</th>
               <th title="平均スタートタイミング">平均<br>ST</th>
+              <th title="展示タイム(秒)">展示<br>T</th>
+              <th title="チルト角度">チル<br>ト</th>
+              <th title="1M戦法(握る/差し/まくり/流す)">1M<br>戦法</th>
             </tr>
           </thead>
           <tbody id="entryBody"><!-- JSで生成 --></tbody>
         </table>
       </div>
 
+      <fieldset class="cond-box">
+        <legend>レース条件</legend>
+        <div class="cond-grid">
+          <label>風向<select id="windDir" class="cond-input"></select></label>
+          <label>風速<span class="cond-unit"><input id="windSpeed" class="cond-input" type="number" min="0" max="20" step="1" value="0">m</span></label>
+          <label>波高<span class="cond-unit"><input id="waveHeight" class="cond-input" type="number" min="0" max="50" step="1" value="0">cm</span></label>
+        </div>
+        <p id="stadiumTrait" class="stadium-trait"></p>
+      </fieldset>
+
       <button id="predictBtn" class="btn btn-primary btn-block" type="button">展開を予想する</button>
-      <p class="hint">※ 数値は実際の出走表（公式サイト等）を参考に入力してください。</p>
+      <p class="hint">※ 展示T・チルト・風波・場の特徴・戦法も予想に反映されます。空欄は標準値で補完します。</p>
     </section>
 
     <!-- 可視化パネル -->
@@ -84,13 +97,25 @@
         <h2>展開予想ビジュアライザー</h2>
         <div class="panel-actions">
           <span id="kimariteBadge" class="badge badge-hidden">決まり手: -</span>
-          <button id="replayBtn" class="btn btn-ghost" type="button" disabled>▶ 再生</button>
         </div>
       </div>
       <div class="canvas-wrap">
-        <canvas id="raceCanvas" width="920" height="520"></canvas>
+        <canvas id="raceCanvas" width="960" height="560"></canvas>
         <div id="vizPlaceholder" class="viz-placeholder">
-          <p>「展開を予想する」を押すと、ここに1マークの攻防が表示されます。</p>
+          <p>「展開を予想する」を押すと、進入隊形〜起こし〜1マークの攻防が表示されます。</p>
+        </div>
+      </div>
+
+      <div id="playerBar" class="player-bar" hidden>
+        <button id="playBtn" class="btn btn-play" type="button">▶</button>
+        <div class="seek-wrap">
+          <input id="seekBar" class="seek-bar" type="range" min="0" max="1000" value="0" step="1" aria-label="再生位置">
+          <div class="seek-ticks">
+            <span class="tick" data-phase="formation">待機/起こし</span>
+            <span class="tick" data-phase="start">スタート</span>
+            <span class="tick" data-phase="mark">1マーク</span>
+            <span class="tick" data-phase="after">通過後〜2M</span>
+          </div>
         </div>
       </div>
       <p id="vizComment" class="viz-comment"></p>
