@@ -135,6 +135,9 @@ body {
 }
 .btn-fetch:hover { background: var(--water-deep); }
 .btn-fetch:disabled { opacity: 0.6; cursor: progress; }
+.btn-before { background: #6a4c93; flex-basis: 100%; }
+.btn-before:hover { background: #543a77; }
+.entry-table .course-input { width: 100%; min-width: 30px; }
 .fetch-status {
   font-size: 0.8rem;
   margin: 0 0 8px;

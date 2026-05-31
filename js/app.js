@@ -21,6 +21,7 @@
     stadiumSel: document.getElementById("stadiumSel"),
     raceSel: document.getElementById("raceSel"),
     fetchBtn: document.getElementById("fetchBtn"),
+    beforeBtn: document.getElementById("beforeBtn"),
     fetchStatus: document.getElementById("fetchStatus"),
     windDir: document.getElementById("windDir"),
     windSpeed: document.getElementById("windSpeed"),
@@ -80,6 +81,48 @@
     else if (kind === "ok") els.fetchStatus.classList.add("is-ok");
   }
 
+  /** 直前情報（展示・チルト・気象・展示進入・部品交換）をCORSプロキシ経由で取得・反映 */
+  async function fetchBefore() {
+    const stadium = Number(els.stadiumSel.value);
+    const race = Number(els.raceSel.value);
+    const name = (BR.STADIUMS.find((s) => s.code === stadium) || {}).name || "";
+    setFetchStatus(`${name} ${race}R の直前情報を取得中…（プロキシ経由）`, "");
+    els.beforeBtn.disabled = true;
+    try {
+      const info = await BR.fetchBeforeInfo(stadium, race);
+      // 各艇: 展示タイム・チルト
+      Object.keys(info.boats).forEach((k) => {
+        const b = info.boats[k];
+        if (b.exhibitionTime != null) setVal(b.no, "exhibitionTime", b.exhibitionTime);
+        if (b.tilt != null) setVal(b.no, "tilt", b.tilt);
+      });
+      // 展示進入隊形 → 進入コース
+      if (info.formation) {
+        Object.keys(info.formation).forEach((no) => setVal(Number(no), "course", info.formation[no]));
+      }
+      // 気象
+      if (info.weather.windSpeed != null) els.windSpeed.value = info.weather.windSpeed;
+      if (info.weather.waveHeight != null) els.waveHeight.value = info.weather.waveHeight;
+
+      const g = info.got;
+      const parts = Object.keys(info.boats)
+        .map((k) => info.boats[k])
+        .filter((b) => b.parts)
+        .map((b) => `${b.no}号:${b.parts}`);
+      let msg = `✓ 直前情報を反映（展示${g.exh}/6・チルト${g.tilt}/6`;
+      if (g.weather) msg += "・気象";
+      if (g.formation) msg += "・展示進入";
+      msg += "）";
+      if (parts.length) msg += ` 部品交換: ${parts.join(" / ")}`;
+      if (!g.formation || !g.weather) msg += "　※風向・展示進入は取得状況により手動調整を。";
+      setFetchStatus(msg, "ok");
+    } catch (e) {
+      setFetchStatus(`直前情報を取得できませんでした: ${e.message}`, "error");
+    } finally {
+      els.beforeBtn.disabled = false;
+    }
+  }
+
   // ---- 出走表テーブル ----
   function buildTable() {
     els.entryBody.innerHTML = "";
@@ -89,6 +132,7 @@
       tr.innerHTML = `
         <td><span class="boat-badge" style="background:${b.color};color:${b.textColor}">${b.no}</span></td>
         <td><input class="name-input" data-no="${b.no}" data-f="name" type="text" placeholder="選手名"></td>
+        <td><input class="course-input" data-no="${b.no}" data-f="course" type="number" step="1" min="1" max="6" value="${b.no}"></td>
         <td><input data-no="${b.no}" data-f="winRate" type="number" step="0.01" min="0" max="10" placeholder="0.00"></td>
         <td><input data-no="${b.no}" data-f="motorRate" type="number" step="1" min="0" max="100" placeholder="0"></td>
         <td><input data-no="${b.no}" data-f="avgST" type="number" step="0.01" min="0" max="1" placeholder="0.00"></td>
@@ -125,9 +169,9 @@
   }
 
   function readTable() {
-    return BR.BOATS.map((b) => ({
+    const rows = BR.BOATS.map((b) => ({
       no: b.no,
-      course: b.no, // 進入は枠なりを既定
+      course: num(getVal(b.no, "course"), b.no),
       name: getVal(b.no, "name") || `${b.no}号艇`,
       winRate: num(getVal(b.no, "winRate"), 5.5),
       motorRate: num(getVal(b.no, "motorRate"), 45),
@@ -136,6 +180,10 @@
       tilt: num(getVal(b.no, "tilt"), 0.5),
       style: getVal(b.no, "style") || "normal",
     }));
+    // 進入コースが1〜6の順列でなければ枠なりに戻す
+    const courses = rows.map((r) => r.course).sort((a, b) => a - b).join("");
+    if (courses !== "123456") rows.forEach((r) => (r.course = r.no));
+    return rows;
   }
 
   function readConditions() {
@@ -214,6 +262,7 @@
   els.randomBtn.addEventListener("click", () => fillTable(BR.makeRandomEntry()));
   els.predictBtn.addEventListener("click", runPrediction);
   els.fetchBtn.addEventListener("click", fetchOfficial);
+  els.beforeBtn.addEventListener("click", fetchBefore);
   els.stadiumSel.addEventListener("change", updateStadiumTrait);
 
   // ---- 初期化 ----
