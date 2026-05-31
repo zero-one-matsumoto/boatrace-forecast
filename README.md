@@ -3,6 +3,10 @@
 ボートレース（競艇）の**展開予想**Webアプリ。出走表を入力すると、スタートから
 1マーク（第1ターンマーク）までの攻防を予測し、**Canvasアニメーションで可視化**します。
 
+**公開URL（GitHub Pages）: https://zero-one-matsumoto.github.io/boatrace-forecast/**
+
+iPhone の Safari でも上記URLを開くだけでフル機能（JavaScript）で動作します。
+
 ## 特徴
 
 - **公式データ取得**: 場（24場）とレース番号を選んで「公式データ取得」を押すと、
@@ -77,7 +81,14 @@ js/fetch.js       公式データ由来の出走表取得(BoatraceOpenAPI)
 js/app.js         UI制御
 build-standalone.js   単一HTMLファイル生成スクリプト（iOS Safari向け）
 dist/boatrace-forecast.html  生成済みの単一ファイル（オフライン/file://対応）
+.github/workflows/deploy-pages.yml  GitHub Pages 自動デプロイ
 ```
+
+## デプロイ（GitHub Pages）
+
+`main` への push をトリガーに GitHub Actions が分割構成のまま
+（`index.html` を起点に `styles.css` / `js/*.js` を）配信します。
+Pages はワークフロー内で自動有効化されます。
 
 ## 注意
 
