@@ -8,7 +8,7 @@
  *  - JSONのフィールド名は提供元の仕様変更に備え、複数候補から解決する（defensive）。
  *  - 公式の「勝率」が無くパーセント値しか取れない場合は、近似的に勝率へ換算する。
  */
-const BR = window.BR || {};
+var BR = window.BR || {};
 
 /** 数値化（不正値はnull） */
 function _num(v) {

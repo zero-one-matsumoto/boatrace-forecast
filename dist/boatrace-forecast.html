@@ -363,7 +363,8 @@ body {
  * data.js — 静的データと定数の定義
  * ボートレースのドメイン知識（艇番カラー・コース別成績・サンプル出走表）を保持する。
  */
-const BR = window.BR || {};
+// 複数の<script>で共有するグローバル名前空間。var を使い再宣言エラーを避ける。
+var BR = window.BR || {};
 
 /** 艇番ごとの標準カラーと表記 */
 BR.BOATS = [
@@ -460,7 +461,7 @@ window.BR = BR;
  *    速いSTがあると「まくり」が決まりやすい。
  *  - 決まり手は概ね進入コースに対応する（1=逃げ, 2=差し, 4=まくり…）。
  */
-const BR = window.BR || {};
+var BR = window.BR || {};
 
 /** 値を範囲内に収める */
 function clamp(v, min, max) {
@@ -625,9 +626,9 @@ window.BR = BR;
  *  - 下位艇ほど外側を大回りし、遅れて回る。
  *  - 「まくり」では外艇が先頭に立つため、その艇が内側ラインで先マイする。
  */
-const BR = window.BR || {};
+var BR = window.BR || {};
 
-const Visualizer = (function () {
+var Visualizer = (function () {
   // 論理キャンバスサイズ
   const W = 920, H = 520;
   // 1マーク（ターンマーク）の位置
@@ -911,7 +912,7 @@ window.BR = BR;
  *  - JSONのフィールド名は提供元の仕様変更に備え、複数候補から解決する（defensive）。
  *  - 公式の「勝率」が無くパーセント値しか取れない場合は、近似的に勝率へ換算する。
  */
-const BR = window.BR || {};
+var BR = window.BR || {};
 
 /** 数値化（不正値はnull） */
 function _num(v) {

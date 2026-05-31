@@ -10,7 +10,7 @@
  *    速いSTがあると「まくり」が決まりやすい。
  *  - 決まり手は概ね進入コースに対応する（1=逃げ, 2=差し, 4=まくり…）。
  */
-const BR = window.BR || {};
+var BR = window.BR || {};
 
 /** 値を範囲内に収める */
 function clamp(v, min, max) {

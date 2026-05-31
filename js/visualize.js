@@ -7,9 +7,9 @@
  *  - 下位艇ほど外側を大回りし、遅れて回る。
  *  - 「まくり」では外艇が先頭に立つため、その艇が内側ラインで先マイする。
  */
-const BR = window.BR || {};
+var BR = window.BR || {};
 
-const Visualizer = (function () {
+var Visualizer = (function () {
   // 論理キャンバスサイズ
   const W = 920, H = 520;
   // 1マーク（ターンマーク）の位置
