@@ -81,14 +81,19 @@ js/fetch.js       公式データ由来の出走表取得(BoatraceOpenAPI)
 js/app.js         UI制御
 build-standalone.js   単一HTMLファイル生成スクリプト（iOS Safari向け）
 dist/boatrace-forecast.html  生成済みの単一ファイル（オフライン/file://対応）
-.github/workflows/deploy-pages.yml  GitHub Pages 自動デプロイ
+.nojekyll         GitHub PagesのJekyll処理を無効化（js/等をそのまま配信）
 ```
 
-## デプロイ（GitHub Pages）
+## デプロイ（GitHub Pages / ブランチ配信）
 
-`main` への push をトリガーに GitHub Actions が分割構成のまま
-（`index.html` を起点に `styles.css` / `js/*.js` を）配信します。
-Pages はワークフロー内で自動有効化されます。
+分割構成のまま `main` ブランチの root から配信します。リポジトリの
+**Settings › Pages › Build and deployment** で次のように設定するだけです。
+
+- **Source**: `Deploy from a branch`
+- **Branch**: `main` / `(root)`
+
+`.nojekyll` を置いているため Jekyll 処理は行われず、`index.html` を起点に
+`styles.css` / `js/*.js` がそのまま静的配信されます。`main` へ push するたびに反映されます。
 
 ## 注意
 
