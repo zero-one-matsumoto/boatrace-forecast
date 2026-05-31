@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ボートレース展開予想 | Boatrace Forecast</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <h1>🚤 ボートレース展開予想</h1>
+      <p class="subtitle">出走表を入力すると、スタート〜1マークの<strong>展開</strong>を予測し可視化します</p>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- 入力パネル -->
+    <section class="panel input-panel">
+      <div class="panel-head">
+        <h2>出走表</h2>
+        <div class="panel-actions">
+          <button id="sampleBtn" class="btn btn-ghost" type="button">サンプル読込</button>
+          <button id="randomBtn" class="btn btn-ghost" type="button">ランダム生成</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="entryTable" class="entry-table">
+          <thead>
+            <tr>
+              <th>艇</th>
+              <th>選手名</th>
+              <th title="全国勝率">全国<br>勝率</th>
+              <th title="モーター2連対率(%)">モーター<br>2連率</th>
+              <th title="平均スタートタイミング">平均<br>ST</th>
+            </tr>
+          </thead>
+          <tbody id="entryBody"><!-- JSで生成 --></tbody>
+        </table>
+      </div>
+
+      <button id="predictBtn" class="btn btn-primary btn-block" type="button">展開を予想する</button>
+      <p class="hint">※ 数値は実際の出走表（公式サイト等）を参考に入力してください。</p>
+    </section>
+
+    <!-- 可視化パネル -->
+    <section class="panel viz-panel">
+      <div class="panel-head">
+        <h2>展開予想ビジュアライザー</h2>
+        <div class="panel-actions">
+          <span id="kimariteBadge" class="badge badge-hidden">決まり手: -</span>
+          <button id="replayBtn" class="btn btn-ghost" type="button" disabled>▶ 再生</button>
+        </div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="raceCanvas" width="920" height="520"></canvas>
+        <div id="vizPlaceholder" class="viz-placeholder">
+          <p>「展開を予想する」を押すと、ここに1マークの攻防が表示されます。</p>
+        </div>
+      </div>
+      <p id="vizComment" class="viz-comment"></p>
+    </section>
+
+    <!-- 結果パネル -->
+    <section class="panel result-panel">
+      <div class="panel-head"><h2>予想結果</h2></div>
+      <div id="resultEmpty" class="result-empty">予想を実行すると、着順予想と推奨買い目を表示します。</div>
+      <div id="resultContent" class="result-content" hidden>
+        <h3>着順予想（確率）</h3>
+        <ol id="rankingList" class="ranking-list"></ol>
+        <h3>推奨買い目</h3>
+        <div id="betList" class="bet-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>本アプリの予想は統計的ヒューリスティクスに基づく参考情報です。舟券の購入は自己責任で行ってください。</p>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/visualize.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

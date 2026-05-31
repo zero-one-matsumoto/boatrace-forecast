@@ -1,0 +1,198 @@
+:root {
+  --bg: #0d1b2a;
+  --bg-panel: #ffffff;
+  --bg-soft: #f4f7fb;
+  --ink: #1b263b;
+  --ink-soft: #5b6b7a;
+  --accent: #0077b6;
+  --accent-dark: #023e8a;
+  --water: #1d6fa5;
+  --water-deep: #0b4d7a;
+  --line: #d9e2ec;
+  --shadow: 0 6px 24px rgba(2, 32, 64, 0.12);
+  /* 艇番カラー（ボートレース標準） */
+  --boat1: #ffffff;
+  --boat2: #1a1a1a;
+  --boat3: #e63946;
+  --boat4: #2a6fdb;
+  --boat5: #f4c20d;
+  --boat6: #2a9d4a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, system-ui, sans-serif;
+  color: var(--ink);
+  background: linear-gradient(160deg, #eef3f8 0%, #dbe7f1 100%);
+  min-height: 100vh;
+}
+
+/* ---- Header ---- */
+.app-header {
+  background: linear-gradient(120deg, var(--accent-dark), var(--accent));
+  color: #fff;
+  padding: 22px 16px;
+  box-shadow: var(--shadow);
+}
+.header-inner { max-width: 1240px; margin: 0 auto; }
+.app-header h1 { margin: 0 0 4px; font-size: 1.7rem; }
+.subtitle { margin: 0; opacity: 0.92; font-size: 0.95rem; }
+.subtitle strong { color: #ffd166; }
+
+/* ---- Layout ---- */
+.layout {
+  max-width: 1240px;
+  margin: 22px auto;
+  padding: 0 16px;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  grid-template-areas:
+    "input viz"
+    "result viz";
+  gap: 18px;
+  align-items: start;
+}
+.input-panel { grid-area: input; }
+.viz-panel { grid-area: viz; }
+.result-panel { grid-area: result; }
+
+@media (max-width: 980px) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-areas: "input" "viz" "result";
+  }
+}
+
+/* ---- Panels ---- */
+.panel {
+  background: var(--bg-panel);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow);
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.panel-head h2 { margin: 0; font-size: 1.1rem; }
+.panel-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ---- Buttons ---- */
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.05s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-ghost { background: var(--bg-soft); color: var(--ink); border: 1px solid var(--line); }
+.btn-ghost:hover { background: #e7eef6; }
+.btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-block { width: 100%; margin-top: 12px; padding: 12px; font-size: 1rem; }
+
+/* ---- Entry table ---- */
+.table-wrap { overflow-x: auto; }
+.entry-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.entry-table th, .entry-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 6px 4px;
+  text-align: center;
+}
+.entry-table thead th { color: var(--ink-soft); font-weight: 700; line-height: 1.2; }
+.entry-table input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 6px;
+  font-size: 0.88rem;
+  text-align: center;
+}
+.entry-table input.name-input { text-align: left; }
+.entry-table input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+.boat-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  font-weight: 800;
+  border: 2px solid rgba(0,0,0,0.2);
+  font-size: 0.85rem;
+}
+.hint { font-size: 0.75rem; color: var(--ink-soft); margin: 10px 0 0; }
+
+/* ---- Canvas / Viz ---- */
+.canvas-wrap { position: relative; width: 100%; }
+#raceCanvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 12px;
+  background: var(--water);
+}
+.viz-placeholder {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #eaf4fb; text-align: center; padding: 24px;
+  background: rgba(11, 77, 122, 0.55);
+  border-radius: 12px;
+}
+.viz-comment {
+  margin: 12px 2px 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--ink);
+  min-height: 1.2em;
+}
+.badge {
+  background: #ffd166;
+  color: #5a3e00;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.85rem;
+}
+.badge-hidden { opacity: 0; }
+
+/* ---- Result ---- */
+.result-empty { color: var(--ink-soft); font-size: 0.9rem; }
+.result-content h3 { font-size: 0.95rem; margin: 4px 0 8px; color: var(--accent-dark); }
+.ranking-list { list-style: none; counter-reset: rank; padding: 0; margin: 0 0 16px; }
+.ranking-list li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 6px; border-bottom: 1px solid var(--line);
+}
+.rank-pos {
+  font-weight: 800; color: var(--accent-dark); width: 34px;
+  font-size: 0.95rem;
+}
+.rank-name { flex: 1; font-size: 0.9rem; }
+.prob-bar-wrap { flex: 1.4; background: var(--bg-soft); border-radius: 6px; overflow: hidden; height: 16px; }
+.prob-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-dark)); }
+.prob-val { width: 52px; text-align: right; font-size: 0.82rem; color: var(--ink-soft); }
+
+.bet-list { display: flex; flex-direction: column; gap: 8px; }
+.bet-item {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg-soft); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 12px;
+}
+.bet-type { font-size: 0.78rem; color: var(--ink-soft); }
+.bet-combo { font-weight: 800; font-size: 1rem; letter-spacing: 1px; }
+.bet-conf { font-size: 0.8rem; color: var(--accent-dark); font-weight: 700; }
+
+/* ---- Footer ---- */
+.app-footer {
+  text-align: center; color: var(--ink-soft);
+  font-size: 0.78rem; padding: 16px; margin-top: 8px;
+}
