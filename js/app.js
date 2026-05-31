@@ -25,14 +25,18 @@
     fetchStatus: document.getElementById("fetchStatus"),
   };
 
-  /** 場・レース番号のセレクトを生成 */
+  /** 場・レース番号のセレクトを生成（静的HTMLで既に埋まっていれば尊重） */
   function buildSelectors() {
-    els.stadiumSel.innerHTML = BR.STADIUMS.map(
-      (s) => `<option value="${s.code}">${s.name}</option>`
-    ).join("");
-    els.raceSel.innerHTML = Array.from({ length: 12 }, (_, i) =>
-      `<option value="${i + 1}">${i + 1}R</option>`
-    ).join("");
+    if (!els.stadiumSel.options || els.stadiumSel.options.length === 0) {
+      els.stadiumSel.innerHTML = BR.STADIUMS.map(
+        (s) => `<option value="${s.code}">${s.name}</option>`
+      ).join("");
+    }
+    if (!els.raceSel.options || els.raceSel.options.length === 0) {
+      els.raceSel.innerHTML = Array.from({ length: 12 }, (_, i) =>
+        `<option value="${i + 1}">${i + 1}R</option>`
+      ).join("");
+    }
   }
 
   /** 公式データ由来の出走表を取得してテーブルに反映 */

@@ -14,6 +14,13 @@
     </div>
   </header>
 
+  <noscript>
+    <div class="noscript-warn">
+      ⚠ このアプリは JavaScript が必要です。プレビュー表示ではなく、
+      <strong>Safari や Chrome などのブラウザで直接開いて</strong>ください。
+    </div>
+  </noscript>
+
   <main class="layout">
     <!-- 入力パネル -->
     <section class="panel input-panel">
@@ -26,8 +33,28 @@
       </div>
 
       <div class="fetch-bar">
-        <select id="stadiumSel" class="fetch-select" aria-label="競艇場"></select>
-        <select id="raceSel" class="fetch-select" aria-label="レース番号"></select>
+        <select id="stadiumSel" class="fetch-select" aria-label="競艇場">
+          <option value="1">桐生</option><option value="2">戸田</option>
+          <option value="3">江戸川</option><option value="4">平和島</option>
+          <option value="5">多摩川</option><option value="6">浜名湖</option>
+          <option value="7">蒲郡</option><option value="8">常滑</option>
+          <option value="9">津</option><option value="10">三国</option>
+          <option value="11">びわこ</option><option value="12">住之江</option>
+          <option value="13">尼崎</option><option value="14">鳴門</option>
+          <option value="15">丸亀</option><option value="16">児島</option>
+          <option value="17">宮島</option><option value="18">徳山</option>
+          <option value="19">下関</option><option value="20">若松</option>
+          <option value="21">芦屋</option><option value="22">福岡</option>
+          <option value="23">唐津</option><option value="24">大村</option>
+        </select>
+        <select id="raceSel" class="fetch-select" aria-label="レース番号">
+          <option value="1">1R</option><option value="2">2R</option>
+          <option value="3">3R</option><option value="4">4R</option>
+          <option value="5">5R</option><option value="6">6R</option>
+          <option value="7">7R</option><option value="8">8R</option>
+          <option value="9">9R</option><option value="10">10R</option>
+          <option value="11">11R</option><option value="12">12R</option>
+        </select>
         <button id="fetchBtn" class="btn btn-fetch" type="button">公式データ取得</button>
       </div>
       <p id="fetchStatus" class="fetch-status"></p>

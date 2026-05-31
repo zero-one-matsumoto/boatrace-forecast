@@ -99,6 +99,19 @@ body {
 .btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-block { width: 100%; margin-top: 12px; padding: 12px; font-size: 1rem; }
 
+/* ---- noscript warning ---- */
+.noscript-warn {
+  max-width: 1240px;
+  margin: 16px auto;
+  padding: 14px 18px;
+  background: #fff3cd;
+  border: 1px solid #ffd166;
+  border-radius: 10px;
+  color: #7a5a00;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
 /* ---- Fetch bar (公式データ取得) ---- */
 .fetch-bar {
   display: flex;
