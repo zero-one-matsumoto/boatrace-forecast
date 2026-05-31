@@ -22,6 +22,19 @@ python3 -m http.server 8000
 # ブラウザで http://localhost:8000 を開く
 ```
 
+### iPhone（iOS Safari）で直接開く
+
+iOS Safari で `file://` から複数ファイルを開くとサブリソース読み込みに失敗するため、
+CSS/JS を1つに同梱した**単一HTMLファイル**を用意しています。
+
+```bash
+node build-standalone.js   # dist/boatrace-forecast.html を生成（生成済みもコミット済み）
+```
+
+`dist/boatrace-forecast.html` を iPhone に転送（AirDrop / メール添付 / iCloud Drive 等で
+「ファイル」アプリに保存）し、ファイルをタップ → 共有 →「Safariで開く」で、
+サーバ不要・オフラインでそのまま動作します。
+
 1. 「サンプル読込」または「ランダム生成」で出走表を埋める（手入力も可）。
 2. 各艇に **全国勝率 / モーター2連対率 / 平均ST** を入力。
 3. **「展開を予想する」** を押すと、可視化・決まり手・着順・買い目が表示されます。
@@ -49,6 +62,8 @@ js/data.js        艇番カラー・コース別成績・サンプルデータ
 js/engine.js      展開予想エンジン（強さ・勝率・決まり手・買い目）
 js/visualize.js   1マーク攻防のCanvasアニメーション
 js/app.js         UI制御
+build-standalone.js   単一HTMLファイル生成スクリプト（iOS Safari向け）
+dist/boatrace-forecast.html  生成済みの単一ファイル（オフライン/file://対応）
 ```
 
 ## 注意
